@@ -1,15 +1,16 @@
 
-import weakref
 import gc
 import unittest
+import weakref
 from collections import OrderedDict
 
 import numpy as np
 from numpy.testing import assert_array_almost_equal as assert_aequal
 
-from ..wrapper import Type, Value
 from .. import pvdVersion
+from ..wrapper import Type, Value
 from .utils import RefTestCase
+
 
 class TestWrapper(RefTestCase):
     def testCall(self):
@@ -183,12 +184,12 @@ class TestRawValue(RefTestCase):
             ('sval', 'as'),
         ]), {
             'ival': [1, 2, 3],
-            'dval': np.asfarray([1.1, 2.2]),
+            'dval': np.asarray([1.1, 2.2], dtype=np.float64),
             'sval': ['a', u'b'],
         })
 
         assert_aequal(V.ival, np.asarray([1, 2, 3]))
-        assert_aequal(V.dval, np.asfarray([1.1, 2.2]))
+        assert_aequal(V.dval, np.asarray([1.1, 2.2], dtype=np.float64))
         self.assertListEqual(V.sval, [u'a', u'b'])
 
         # i4 <- u8 violates "safe" casting rules
@@ -296,8 +297,8 @@ class TestRawValue(RefTestCase):
         V.x = np.asarray([1, 2])
         assert_aequal(V.x, np.asarray([1, 2]))
 
-        V.x = np.asfarray([1, 2])
-        assert_aequal(V.x, np.asfarray([1, 2]))
+        V.x = np.asarray([1, 2], dtype=np.float64)
+        assert_aequal(V.x, np.asarray([1, 2], dtype=np.float64))
 
         # clearing unions is broken prior to 7.0.0
         if pvdVersion() >= (7, 0, 0, 0):
@@ -317,7 +318,7 @@ class TestRawValue(RefTestCase):
         self.assertEqual(type(V.x), float)
 
         V.x = ('ad', np.asarray([1, 2]))
-        assert_aequal(V.x, np.asfarray([1, 2]))
+        assert_aequal(V.x, np.asarray([1, 2], dtype=np.float64))
 
         V.x = ('as', ['one', 'two'])
         self.assertEqual(V.x, ['one', 'two'])

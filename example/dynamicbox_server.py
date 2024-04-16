@@ -15,10 +15,9 @@ These mailbox PVs can be dynamically created and destroyed via RPC calls.
    $ pvget -m foo:list
 """
 
-from __future__ import print_function
-
 import sys
 import time, logging
+
 _log = logging.getLogger(__name__)
 
 from threading import Lock
@@ -59,7 +58,7 @@ listpv = SharedPV(nt=list_type, initial=[])
 provider.add(prefix + "add", addpv)
 provider.add(prefix + "del", delpv)
 provider.add(prefix + "list", listpv)
-_log.info("add with %s, remove with %s, list with %s", prefix + "add", prefix + "del", prefix + "list")
+_log.info("add with %s, remove with %s, list with %s", prefix + 'add', prefix + 'del', prefix + 'list')
 
 @addpv.rpc
 def adder(pv, op):

@@ -10,8 +10,6 @@ PY_INCDIRS := /path ...
 PY_LIBDIRS := /path ...
 """
 
-from __future__ import print_function
-
 import sys
 import errno
 import os
@@ -23,7 +21,7 @@ else:
         os.makedirs(os.path.dirname(sys.argv[1]))
     except OSError:
         pass
-    out = open(sys.argv[1], 'w')
+    out = open(sys.argv[1], "w")
 
 try:
     from sysconfig import get_config_var, get_python_inc
@@ -33,14 +31,14 @@ except ImportError:
 incdirs = [get_python_inc()]
 libdir = get_config_var('LIBDIR') or ''
 
-try:
-    from numpy.distutils.misc_util import get_numpy_include_dirs
-except ImportError:
-    def get_numpy_include_dirs():
-        from numpy import get_include
-        return [get_include()]
 
-incdirs = get_numpy_include_dirs()+incdirs
+def get_numpy_include_dirs():
+    from numpy import get_include
+
+    return [get_include()]
+
+
+incdirs = get_numpy_include_dirs() + incdirs
 
 print('TARGET_CFLAGS +=',get_config_var('BASECFLAGS'), file=out)
 print('TARGET_CXXFLAGS +=',get_config_var('BASECFLAGS'), file=out)
