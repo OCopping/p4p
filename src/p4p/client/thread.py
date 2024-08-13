@@ -1,38 +1,33 @@
-
-from __future__ import print_function
-
 import logging
 import sys
-_log = logging.getLogger(__name__)
 
 try:
     from itertools import izip
 except ImportError:
     izip = zip
-from functools import partial
 import json
 import threading
+from functools import partial
 
 try:
-    from Queue import Queue, Full, Empty
+    from Queue import Empty, Queue
 except ImportError:
-    from queue import Queue, Full, Empty
+    from queue import Empty, Queue
 
-from . import raw
-from .raw import Disconnected, RemoteError, Cancelled, Finished
-from ..util import _defaultWorkQueue
-from ..wrapper import Value, Type
+from .._p4p import Cancelled, Disconnected, Finished, RemoteError
 from ..rpc import WorkQueue
-from .._p4p import (logLevelAll, logLevelTrace, logLevelDebug,
-                    logLevelInfo, logLevelWarn, logLevelError,
-                    logLevelFatal, logLevelOff)
+from ..util import _defaultWorkQueue
+from ..wrapper import Type, Value
+from . import raw
+
+_log = logging.getLogger(__name__)
 
 __all__ = [
-    'Context',
-    'Value',
-    'Type',
-    'RemoteError',
-    'TimeoutError',
+    "Context",
+    "Value",
+    "Type",
+    "RemoteError",
+    "TimeoutError",
 ]
 
 if sys.version_info >= (3, 0):
@@ -40,10 +35,12 @@ if sys.version_info >= (3, 0):
     TimeoutError = TimeoutError
 
 else:
+
     class TimeoutError(RuntimeError):
         "Local timeout has expired"
+
         def __init__(self):
-            RuntimeError.__init__(self, 'Timeout')
+            RuntimeError.__init__(self, "Timeout")
 
 
 class Subscription(object):
@@ -61,8 +58,7 @@ class Subscription(object):
             self._Q.push_wait(partial(cb, Disconnected()))
 
     def close(self):
-        """Close subscription.
-        """
+        """Close subscription."""
         if self._S is not None:
             # after .close() self._event should never be called
             self._S.close()
@@ -76,20 +72,20 @@ class Subscription(object):
 
     @property
     def done(self):
-        'Has all data for this subscription been received?'
+        "Has all data for this subscription been received?"
         return self._S is None or self._S.done()
 
     @property
     def empty(self):
-        'Is data pending in event queue?'
+        "Is data pending in event queue?"
         return self._S is None or self._S.empty()
 
     def _event(self):
         try:
             assert self._S is not None, self._S
-            _log.debug('Subscription wakeup for %s', self.name)
+            _log.debug("Subscription wakeup for %s", self.name)
             self._Q.push(self._handle)
-        except:
+        except Exception:
             _log.exception("Lost Subscription update for %s", self.name)
 
     def _handle(self):
@@ -101,10 +97,10 @@ class Subscription(object):
             for n in range(4):
                 E = S.pop()
                 if E is None:
-                    break # monitor queue empty
+                    break  # monitor queue empty
 
                 elif isinstance(E, Exception):
-                    _log.debug('Subscription notify for %s with %s', self.name, E)
+                    _log.debug("Subscription notify for %s with %s", self.name, E)
                     if self._notify_disconnect:
                         self._cb(E)
 
@@ -112,7 +108,7 @@ class Subscription(object):
                         _log.error("Subscription Error %s", E)
 
                     if isinstance(E, Finished):
-                        _log.debug('Subscription complete %s', self.name)
+                        _log.debug("Subscription complete %s", self.name)
                         self._S = None
                         S.close()
 
@@ -124,7 +120,7 @@ class Subscription(object):
                 # re-schedule to mux with others
                 self._Q.push(self._handle)
 
-        except:
+        except Exception:
             _log.exception("Error processing Subscription event for %s", self.name)
             if self._S is not None:
                 self._S.close()
@@ -132,7 +128,6 @@ class Subscription(object):
 
 
 class Context(raw.Context):
-
     """Context(provider, conf=None, useenv=True)
 
     :param str provider: A Provider name.  Try "pva" or run :py:meth:`Context.providers` for a complete list.
@@ -157,16 +152,27 @@ class Context(raw.Context):
     * EPICS_PVA_SERVER_PORT
     * EPICS_PVA_BROADCAST_PORT
     """
+
     Value = Value
 
-    name = ''
+    name = ""
     "Provider name string"
 
-    def __init__(self, provider='pva', conf=None, useenv=True, nt=None, unwrap=None,
-                 maxsize=0, queue=None):
+    def __init__(
+        self,
+        provider="pva",
+        conf=None,
+        useenv=True,
+        nt=None,
+        unwrap=None,
+        maxsize=0,
+        queue=None,
+    ):
         self._channel_lock = threading.Lock()
 
-        super(Context, self).__init__(provider, conf=conf, useenv=useenv, nt=nt, unwrap=unwrap)
+        super(Context, self).__init__(
+            provider, conf=conf, useenv=useenv, nt=nt, unwrap=unwrap
+        )
 
         # lazy start threaded WorkQueue
         self._Q = self._T = None
@@ -186,25 +192,24 @@ class Context(raw.Context):
             Q = WorkQueue(maxsize=self._Qmax)
             Ts = []
             for n in range(self._Wcnt):
-                T = threading.Thread(name='p4p Context worker', target=Q.handle)
+                T = threading.Thread(name="p4p Context worker", target=Q.handle)
                 T.daemon = True
                 Ts.append(T)
             for T in Ts:
                 T.start()
-            _log.debug('Started %d Context worker', self._Wcnt)
+            _log.debug("Started %d Context worker", self._Wcnt)
             self._Q, self._T = Q, Ts
         return self._Q
 
     def close(self):
-        """Force close all Channels and cancel all Operations
-        """
+        """Force close all Channels and cancel all Operations"""
         if self._Q is not None:
             for T in self._T:
                 self._Q.interrupt()
             for n, T in enumerate(self._T):
-                _log.debug('Join Context worker %d', n)
+                _log.debug("Join Context worker %d", n)
                 T.join()
-            _log.debug('Joined Context workers')
+            _log.debug("Joined Context workers")
             self._Q, self._T = None, None
         if not Context:
             # Python 2.7 GC removes Context from scope during destruction of objects.
@@ -248,15 +253,16 @@ class Context(raw.Context):
 
         try:
             for i, (N, req) in enumerate(izip(name, request)):
+
                 def cb(value, i=i):
                     try:
                         if not isinstance(value, Cancelled):
                             done.put_nowait((value, i))
-                        _log.debug('get %s Q %r', N, value)
-                    except:
+                        _log.debug("get %s Q %r", N, value)
+                    except Exception:
                         _log.exception("Error queuing get result %s", value)
 
-                _log.debug('get %s w/ %s', N, req)
+                _log.debug("get %s w/ %s", N, req)
                 ops[i] = raw_get(N, cb, request=req)
 
             for _n in range(len(name)):
@@ -264,10 +270,10 @@ class Context(raw.Context):
                     value, i = done.get(timeout=timeout)
                 except Empty:
                     if throw:
-                        _log.debug('timeout %s after %s', name[i], timeout)
+                        _log.debug("timeout %s after %s", name[i], timeout)
                         raise TimeoutError()
                     break
-                _log.debug('got %s %r', name[i], value)
+                _log.debug("got %s %r", name[i], value)
                 if throw and isinstance(value, Exception):
                     raise value
                 result[i] = value
@@ -280,8 +286,17 @@ class Context(raw.Context):
         else:
             return result
 
-    def put(self, name, values, request=None, timeout=5.0, throw=True,
-            process=None, wait=None, get=True):
+    def put(
+        self,
+        name,
+        values,
+        request=None,
+        timeout=5.0,
+        throw=True,
+        process=None,
+        wait=None,
+        get=True,
+    ):
         """Write a new value of some number of PVs.
 
         :param name: A single name string or list of name strings
@@ -318,9 +333,12 @@ class Context(raw.Context):
         if request and (process or wait is not None):
             raise ValueError("request= is mutually exclusive to process= or wait=")
         elif process or wait is not None:
-            request = 'field()record[block=%s,process=%s]' % ('true' if wait else 'false', process or 'passive')
+            request = "field()record[block=%s,process=%s]" % (
+                "true" if wait else "false",
+                process or "passive",
+            )
             if not singlepv:
-                request = [request]*len(name)
+                request = [request] * len(name)
 
         if singlepv:
             name = [name]
@@ -342,7 +360,7 @@ class Context(raw.Context):
 
         try:
             for i, (n, value, req) in enumerate(izip(name, values, request)):
-                if isinstance(value, (bytes, unicode)) and value[:1] == '{':
+                if isinstance(value, (bytes, unicode)) and value[:1] == "{":
                     try:
                         value = json.loads(value)
                     except ValueError:
@@ -352,7 +370,7 @@ class Context(raw.Context):
                 def cb(value, i=i):
                     try:
                         done.put_nowait((value, i))
-                    except:
+                    except Exception:
                         _log.exception("Error queuing put result %r", value)
 
                 ops[i] = raw_put(n, cb, builder=value, request=req, get=get)
@@ -430,7 +448,9 @@ class Context(raw.Context):
         * A p4p.Value (Subject to :py:ref:`unwrap`)
         * A sub-class of Exception (Disconnected , RemoteError, or Cancelled)
         """
-        R = Subscription(self, name, cb, notify_disconnect=notify_disconnect, queue=queue)
+        R = Subscription(
+            self, name, cb, notify_disconnect=notify_disconnect, queue=queue
+        )
 
         R._S = super(Context, self).monitor(name, R._event, request)
         return R

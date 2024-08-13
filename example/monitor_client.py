@@ -2,17 +2,21 @@
 
 from __future__ import print_function
 
-import sys, time, logging
+import logging
+import sys
+import time
 
 from p4p.client.thread import Context
 
 logging.basicConfig(level=logging.DEBUG)
 
+
 def cb(value):
     print("update", value)
 
+
 print("Create Context")
-with Context('pva') as ctxt:
+with Context("pva") as ctxt:
     print("Subscribe to", sys.argv[1])
     S = ctxt.monitor(sys.argv[1], cb)
 

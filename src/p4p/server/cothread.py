@@ -1,38 +1,39 @@
-
 from __future__ import absolute_import
 
 import logging
-import warnings
+from weakref import WeakSet
+
+from cothread import Callback, Event, Spawn, WaitForAll
+
+from ..client.thread import RemoteError
+from .raw import Handler
+from .raw import SharedPV as _SharedPV
+
 _log = logging.getLogger(__name__)
 
-from weakref import WeakSet
-from functools import partial
-
-import cothread
-from cothread import Spawn, Callback, Event, WaitForAll
-from .raw import SharedPV as _SharedPV, Handler
-from ..client.thread import RemoteError
-
 __all__ = (
-    'SharedPV',
-    'Handler',
+    "SharedPV",
+    "Handler",
 )
 
 # Spawn and Event have __slots__ which doesn't include '__weakref__'
 
+
 class WeakSpawn(Spawn):
-    __slots__=['__weakref__']
+    __slots__ = ["__weakref__"]
+
 
 class WeakEvent(Event):
-    __slots__=['__weakref__']
+    __slots__ = ["__weakref__"]
+
 
 # a set of WeakSpawn and/or WeakEvent
 # in progress _handle() cothreads, or _sync() events
 _handlers = WeakSet()
 
+
 def _sync(timeout=None):
-    """I will wait until all pending handlers cothreads have completed
-    """
+    """I will wait until all pending handlers cothreads have completed"""
     evt = WeakEvent(auto_reset=False)
 
     # first ensure that any pending callbacks from worker threads have been delivered
@@ -40,7 +41,7 @@ def _sync(timeout=None):
     Callback(evt.Signal)
     evt.Wait(timeout=timeout)
 
-    evt.Reset() # reuse
+    evt.Reset()  # reuse
 
     # grab the current set of inprogress cothreads/events
     wait4 = set(_handlers)
@@ -55,15 +56,17 @@ def _sync(timeout=None):
     try:
         WaitForAll(wait4, timeout=timeout)
     except Exception as e:
-        evt.SignalException(e) # pass along error to next concurrent _sync()
+        evt.SignalException(e)  # pass along error to next concurrent _sync()
     else:
-        evt.Signal() # pass along success
+        evt.Signal()  # pass along success
+
 
 # Callback() runs me in the main thread
 def _fromMain(_handle, op, M, args):
-    #_log.debug("_fromMain %s", M)
+    # _log.debug("_fromMain %s", M)
     co = WeakSpawn(_handle, op, M, args)
     _handlers.add(co)
+
 
 def _handle(op, M, args):
     try:
@@ -75,13 +78,12 @@ def _handle(op, M, args):
         _log.exception("Unexpected")
         err = e
     finally:
-        M = args = None # prevent lingering references after _sync() returns
+        M = args = None  # prevent lingering references after _sync() returns
     if op is not None:
         op.done(error=str(err))
 
 
 class SharedPV(_SharedPV):
-
     def __init__(self, queue=None, **kws):
         _SharedPV.__init__(self, **kws)
         self._queue = queue or Callback
@@ -89,7 +91,7 @@ class SharedPV(_SharedPV):
         self._disconnected.Signal()
 
     def _exec(self, op, M, *args):
-        #_log.debug("_exec %s", M)
+        # _log.debug("_exec %s", M)
         self._queue(_fromMain, _handle, op, M, args)
 
     def _onFirstConnect(self, _junk):

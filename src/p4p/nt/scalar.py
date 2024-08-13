@@ -1,10 +1,10 @@
-
-import time
 import sys
+import time
+
 import numpy
 
 from ..wrapper import Type, Value
-from .common import alarm, timeStamp, NTBase
+from .common import NTBase, alarm, timeStamp
 
 if sys.version_info >= (3, 0):
     unicode = str
@@ -16,18 +16,22 @@ class ntwrappercommon(object):
     def _store(self, value):
         assert isinstance(value, Value), value
         self.raw = value
-        self.severity = value.get('alarm.severity', 0)
-        self.status = value.get('alarm.status', 0)
-        S, NS = value.get('timeStamp.secondsPastEpoch', 0), value.get('timeStamp.nanoseconds', 0)
+        self.severity = value.get("alarm.severity", 0)
+        self.status = value.get("alarm.status", 0)
+        S, NS = (
+            value.get("timeStamp.secondsPastEpoch", 0),
+            value.get("timeStamp.nanoseconds", 0),
+        )
         self.raw_stamp = S, NS
         self.timestamp = S + NS * 1e-9
         # TODO: unpack display/control
         return self
 
     def __str__(self):
-        return '%s %s' % (time.ctime(self.timestamp), self.__repr__())
+        return "%s %s" % (time.ctime(self.timestamp), self.__repr__())
 
     tostr = __str__
+
 
 class ntfloat(ntwrappercommon, float):
     """
@@ -63,6 +67,7 @@ class ntbool(ntwrappercommon, int):
     * .raw_stamp - A tuple (seconds, nanoseconds)
     * .raw - The underlying :py:class:`p4p.Value`.
     """
+
     def __new__(cls, value):
         return int.__new__(cls, bool(value))
 
@@ -97,8 +102,9 @@ class ntnumericarray(ntwrappercommon, numpy.ndarray):
     def build(klass, val):
         assert len(val.shape) == 1, val.shape
         # clone
-        return klass(shape=val.shape, dtype=val.dtype, buffer=val.data,
-                     strides=val.strides)
+        return klass(
+            shape=val.shape, dtype=val.dtype, buffer=val.data, strides=val.strides
+        )
 
 
 class ntstringarray(ntwrappercommon, list):
@@ -112,61 +118,107 @@ class ntstringarray(ntwrappercommon, list):
     * .raw - The underlying :py:class:`p4p.Value`.
     """
 
+
 def _metaHelper(F, valtype, display=False, control=False, valueAlarm=False, form=False):
-    isnumeric = valtype[-1:] not in '?su'
+    isnumeric = valtype[-1:] not in "?su"
     if display and isnumeric:
-        F.extend([
-            ('display', ('S', None, [
-                ('limitLow', valtype[-1:]),
-                ('limitHigh', valtype[-1:]),
-                ('description', 's'),
-                ('precision', 'i'),
-                ('form', ('S', 'enum_t', [
-                    ('index', 'i'),
-                    ('choices', 'as'),
-                ])),
-                ('units', 's'),
-            ] if form else [
-                ('limitLow', valtype[-1:]),
-                ('limitHigh', valtype[-1:]),
-                ('description', 's'),
-                ('format', 's'),
-                ('units', 's'),
-            ])),
-        ])
+        F.extend(
+            [
+                (
+                    "display",
+                    (
+                        "S",
+                        None,
+                        [
+                            ("limitLow", valtype[-1:]),
+                            ("limitHigh", valtype[-1:]),
+                            ("description", "s"),
+                            ("precision", "i"),
+                            (
+                                "form",
+                                (
+                                    "S",
+                                    "enum_t",
+                                    [
+                                        ("index", "i"),
+                                        ("choices", "as"),
+                                    ],
+                                ),
+                            ),
+                            ("units", "s"),
+                        ]
+                        if form
+                        else [
+                            ("limitLow", valtype[-1:]),
+                            ("limitHigh", valtype[-1:]),
+                            ("description", "s"),
+                            ("format", "s"),
+                            ("units", "s"),
+                        ],
+                    ),
+                ),
+            ]
+        )
     elif display and not isnumeric:
-        F.extend([
-            ('display', ('S', None, [
-                ('description', 's'),
-                ('units', 's'),
-            ])),
-        ])
+        F.extend(
+            [
+                (
+                    "display",
+                    (
+                        "S",
+                        None,
+                        [
+                            ("description", "s"),
+                            ("units", "s"),
+                        ],
+                    ),
+                ),
+            ]
+        )
     if control and isnumeric:
-        F.extend([
-            ('control', ('S', None, [
-                ('limitLow', valtype[-1:]),
-                ('limitHigh', valtype[-1:]),
-                ('minStep', valtype[-1:]),
-            ])),
-        ])
+        F.extend(
+            [
+                (
+                    "control",
+                    (
+                        "S",
+                        None,
+                        [
+                            ("limitLow", valtype[-1:]),
+                            ("limitHigh", valtype[-1:]),
+                            ("minStep", valtype[-1:]),
+                        ],
+                    ),
+                ),
+            ]
+        )
     if valueAlarm and isnumeric:
-        F.extend([
-            ('valueAlarm', ('S', None, [
-                ('active', '?'),
-                ('lowAlarmLimit', valtype[-1:]),
-                ('lowWarningLimit', valtype[-1:]),
-                ('highWarningLimit', valtype[-1:]),
-                ('highAlarmLimit', valtype[-1:]),
-                ('lowAlarmSeverity', 'i'),
-                ('lowWarningSeverity', 'i'),
-                ('highWarningSeverity', 'i'),
-                ('highAlarmSeverity', 'i'),
-                ('hysteresis', 'd'),
-            ])),
-        ])
+        F.extend(
+            [
+                (
+                    "valueAlarm",
+                    (
+                        "S",
+                        None,
+                        [
+                            ("active", "?"),
+                            ("lowAlarmLimit", valtype[-1:]),
+                            ("lowWarningLimit", valtype[-1:]),
+                            ("highWarningLimit", valtype[-1:]),
+                            ("highAlarmLimit", valtype[-1:]),
+                            ("lowAlarmSeverity", "i"),
+                            ("lowWarningSeverity", "i"),
+                            ("highWarningSeverity", "i"),
+                            ("highAlarmSeverity", "i"),
+                            ("hysteresis", "d"),
+                        ],
+                    ),
+                ),
+            ]
+        )
+
 
 class NTScalar(NTBase):
-
     """Describes a single scalar or array of scalar values and associated meta-data
 
     >>> stype = NTScalar('d') # scalar double
@@ -193,6 +245,7 @@ class NTScalar(NTBase):
     :param bool valueAlarm: Include optional fields for alarm level meta-data
     :param bool form: Include ``display.form`` instead of the deprecated ``display.format``.
     """
+
     Value = Value
 
     @staticmethod
@@ -207,18 +260,20 @@ class NTScalar(NTBase):
         :param bool form: Include ``display.form`` instead of the deprecated ``display.format``.
         :returns: A :py:class:`Type`
         """
-        isarray = valtype[:1] == 'a'
+        isarray = valtype[:1] == "a"
         F = [
-            ('value', valtype),
-            ('alarm', alarm),
-            ('timeStamp', timeStamp),
+            ("value", valtype),
+            ("alarm", alarm),
+            ("timeStamp", timeStamp),
         ]
         _metaHelper(F, valtype, *args, **kws)
         F.extend(extra)
-        return Type(id="epics:nt/NTScalarArray:1.0" if isarray else "epics:nt/NTScalar:1.0",
-                    spec=F)
+        return Type(
+            id="epics:nt/NTScalarArray:1.0" if isarray else "epics:nt/NTScalar:1.0",
+            spec=F,
+        )
 
-    def __init__(self, valtype='d', **kws):
+    def __init__(self, valtype="d", **kws):
         self.type = self.buildType(valtype, **kws)
 
     def wrap(self, value, **kws):
@@ -230,12 +285,12 @@ class NTScalar(NTBase):
         if isinstance(value, Value):
             pass
         elif isinstance(value, ntwrappercommon):
-            kws.setdefault('timestamp', value.timestamp)
+            kws.setdefault("timestamp", value.timestamp)
             value = value.raw
         elif isinstance(value, dict):
             value = self.Value(self.type, value)
         else:
-            value = self.Value(self.type, {'value': value})
+            value = self.Value(self.type, {"value": value})
 
         return self._annotate(value, **kws)
 
@@ -250,8 +305,7 @@ class NTScalar(NTBase):
 
     @classmethod
     def unwrap(klass, value):
-        """Unpack a Value into an augmented python type (selected from the 'value' field)
-        """
+        """Unpack a Value into an augmented python type (selected from the 'value' field)"""
         assert isinstance(value, Value), value
         V = value.value
         try:
@@ -261,14 +315,17 @@ class NTScalar(NTBase):
         try:
             return T(value.value)._store(value)
         except Exception as e:
-            raise ValueError("Can't construct %s around %s (%s): %s" % (T, value, type(value), e))
+            raise ValueError(
+                "Can't construct %s around %s (%s): %s" % (T, value, type(value), e)
+            )
 
     def assign(self, V, py):
-        """Store python value in Value
-        """
+        """Store python value in Value"""
         V.value = py
 
+
 if sys.version_info < (3, 0):
+
     class ntlong(ntwrappercommon, long):
         pass
 

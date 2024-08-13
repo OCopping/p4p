@@ -1,28 +1,23 @@
-
-import logging
-_log = logging.getLogger(__name__)
-
 import asyncio
-
+import logging
 from functools import partial, wraps
 
+from .._p4p import Disconnected, Finished, RemoteError
+from ..wrapper import Type, Value
 from . import raw
-from .raw import Disconnected, RemoteError, Cancelled, Finished
-from ..wrapper import Value, Type
-from .._p4p import (logLevelAll, logLevelTrace, logLevelDebug,
-                    logLevelInfo, logLevelWarn, logLevelError,
-                    logLevelFatal, logLevelOff)
+
+_log = logging.getLogger(__name__)
 
 __all__ = [
-    'Context',
-    'Value',
-    'Type',
-    'RemoteError',
-    'timesout',
+    "Context",
+    "Value",
+    "Type",
+    "RemoteError",
+    "timesout",
 ]
 
-if hasattr(asyncio, 'get_running_loop'): # py >=3.7
-    from asyncio import get_running_loop, create_task, all_tasks
+if hasattr(asyncio, "get_running_loop"):  # py >=3.7
+    from asyncio import all_tasks, create_task, get_running_loop
 else:
     from asyncio import _get_running_loop
     from asyncio.tasks import Task
@@ -30,7 +25,7 @@ else:
     def get_running_loop():
         ret = _get_running_loop()
         if ret is None:
-            raise RuntimeError('Thread has no running event loop')
+            raise RuntimeError("Thread has no running event loop")
         return ret
 
     def create_task(coro, *, name=None):
@@ -38,6 +33,7 @@ else:
 
     def all_tasks():
         return Task.all_tasks(loop=get_running_loop())
+
 
 def timesout(deftimeout=5.0):
     """Decorate a coroutine to implement an overall timeout.
@@ -62,6 +58,7 @@ def timesout(deftimeout=5.0):
             with Context('pva') as ctxt:
                 await dostuff(ctxt, timeout=5)
     """
+
     def decorate(fn):
         assert asyncio.iscoroutinefunction(fn), "Place @timesout before @coroutine"
 
@@ -72,12 +69,13 @@ def timesout(deftimeout=5.0):
                 await fut
             else:
                 await asyncio.wait_for(fut, timeout=timeout)
+
         return wrapper
+
     return decorate
 
 
 class Context(raw.Context):
-
     """
     :param str provider: A Provider name.  Try "pva" or run :py:meth:`Context.providers` for a complete list.
     :param conf dict: Configuration to pass to provider.  Depends on provider selected.
@@ -117,8 +115,10 @@ class Context(raw.Context):
                 await dostuff(ctxt, timeout=5)
     """
 
-    def __init__(self, provider='pva', conf=None, useenv=True, nt=None, unwrap=None):
-        super(Context, self).__init__(provider, conf=conf, useenv=useenv, nt=nt, unwrap=unwrap)
+    def __init__(self, provider="pva", conf=None, useenv=True, nt=None, unwrap=None):
+        super(Context, self).__init__(
+            provider, conf=conf, useenv=useenv, nt=nt, unwrap=unwrap
+        )
 
     async def get(self, name, request=None):
         """Fetch current value of some number of PVs.
@@ -137,7 +137,7 @@ class Context(raw.Context):
         """
         singlepv = isinstance(name, (bytes, str))
         if singlepv:
-            return (await self._get_one(name, request=request))
+            return await self._get_one(name, request=request)
 
         elif request is None:
             request = [None] * len(name)
@@ -160,13 +160,14 @@ class Context(raw.Context):
                 F.set_exception(value)
             else:
                 F.set_result(value)
+
         cb = partial(get_running_loop().call_soon_threadsafe, cb)
 
         op = super(Context, self).get(name, cb, request=request)
 
-        _log.debug('get %s request=%s', name, request)
+        _log.debug("get %s request=%s", name, request)
         try:
-            return (await F)
+            return await F
         finally:
             op.close()
 
@@ -200,11 +201,14 @@ class Context(raw.Context):
         if request and (process or wait is not None):
             raise ValueError("request= is mutually exclusive to process= or wait=")
         elif process or wait is not None:
-            request = 'field()record[block=%s,process=%s]' % ('true' if wait else 'false', process or 'passive')
+            request = "field()record[block=%s,process=%s]" % (
+                "true" if wait else "false",
+                process or "passive",
+            )
 
         singlepv = isinstance(name, (bytes, str))
         if singlepv:
-            return (await self._put_one(name, values, request=request, get=get))
+            return await self._put_one(name, values, request=request, get=get)
 
         elif request is None:
             request = [None] * len(name)
@@ -212,7 +216,10 @@ class Context(raw.Context):
         assert len(name) == len(request), (name, request)
         assert len(name) == len(values), (name, values)
 
-        futs = [self._put_one(N, V, request=R, get=get) for N, V, R in zip(name, values, request)]
+        futs = [
+            self._put_one(N, V, request=R, get=get)
+            for N, V, R in zip(name, values, request)
+        ]
 
         await asyncio.gather(*futs)
 
@@ -227,11 +234,12 @@ class Context(raw.Context):
                 F.set_exception(value)
             else:
                 F.set_result(value)
+
         cb = partial(get_running_loop().call_soon_threadsafe, cb)
 
         op = super(Context, self).put(name, cb, builder=value, request=request, get=get)
 
-        _log.debug('put %s <- %r request=%s', name, value, request)
+        _log.debug("put %s <- %r request=%s", name, value, request)
         try:
             value = await F
         finally:
@@ -267,16 +275,19 @@ class Context(raw.Context):
                 F.set_exception(value)
             else:
                 F.set_result(value)
+
         cb = partial(get_running_loop().call_soon_threadsafe, cb)
 
         op = super(Context, self).rpc(name, cb, value, request=request)
 
         try:
-            return (await F)
+            return await F
         finally:
             op.close()
 
-    def monitor(self, name, cb, request=None, notify_disconnect=False) -> "Subscription":
+    def monitor(
+        self, name, cb, request=None, notify_disconnect=False
+    ) -> "Subscription":
         """Create a callback subscription.
 
         :param str name: PV name string
@@ -300,9 +311,7 @@ class Context(raw.Context):
 
 
 class Subscription(object):
-
-    """An active subscription.
-    """
+    """An active subscription."""
 
     def __init__(self, name, cb, notify_disconnect=False):
         self.name, self._S, self._cb = name, None, cb
@@ -320,8 +329,7 @@ class Subscription(object):
         self.close()
 
     def close(self):
-        """Begin closing subscription.
-        """
+        """Begin closing subscription."""
         if self._S is not None:
             # after .close() self._event should never be called
             self._S.close()
@@ -331,30 +339,31 @@ class Subscription(object):
 
     @property
     def done(self):
-        'Has all data for this subscription been received?'
+        "Has all data for this subscription been received?"
         return self._S is None or self._S.done()
 
     @property
     def empty(self):
-        'Is data pending in event queue?'
+        "Is data pending in event queue?"
         return self._S is None or self._S.empty()
 
     async def wait_closed(self):
-        """Wait until subscription is closed.
-        """
+        """Wait until subscription is closed."""
         assert self._S is None, "Not close()'d"
         await self._T
 
     async def _handle(self):
         if self._notify_disconnect:
-            await self._cb(Disconnected())  # all subscriptions are inittially disconnected
+            await self._cb(
+                Disconnected()
+            )  # all subscriptions are inittially disconnected
 
         E = None
         try:
             while self._run:
                 await self._E.wait()
                 self._E.clear()
-                _log.debug('Subscription %s wakeup', self.name)
+                _log.debug("Subscription %s wakeup", self.name)
 
                 i = 0
                 while self._run:
@@ -364,7 +373,7 @@ class Subscription(object):
                         break
 
                     elif isinstance(E, Disconnected):
-                        _log.debug('Subscription notify for %s with %s', self.name, E)
+                        _log.debug("Subscription notify for %s with %s", self.name, E)
                         if self._notify_disconnect:
                             await self._cb(E)
                         else:
@@ -372,7 +381,7 @@ class Subscription(object):
                         continue
 
                     elif isinstance(E, RemoteError):
-                        _log.debug('Subscription notify for %s with %s', self.name, E)
+                        _log.debug("Subscription notify for %s with %s", self.name, E)
                         if self._notify_disconnect:
                             await self._cb(E)
                         elif isinstance(E, RemoteError):
@@ -384,20 +393,21 @@ class Subscription(object):
 
                     i = (i + 1) % 4
                     if i == 0:
-                        await asyncio.sleep(0)  # Not sure how necessary.  Ensure we go to the scheduler
+                        await asyncio.sleep(
+                            0
+                        )  # Not sure how necessary.  Ensure we go to the scheduler
 
                     if S.done:
-                        _log.debug('Subscription complete %s', self.name)
+                        _log.debug("Subscription complete %s", self.name)
                         S.close()
                         self._S = None
                         if self._notify_disconnect:
                             E = Finished()
                             await self._cb(E)
 
-
         except asyncio.CancelledError:
             _log.debug("Cancelled Subscription: %r", self)
-        except:
+        except Exception:
             _log.exception("Error processing Subscription event: %r", E)
         finally:
             if self._S is not None:

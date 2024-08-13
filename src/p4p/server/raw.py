@@ -1,17 +1,16 @@
-
 import logging
-_log = logging.getLogger(__name__)
 
 from .._p4p import SharedPV as _SharedPV
 
+_log = logging.getLogger(__name__)
+
 __all__ = (
-    'SharedPV',
-    'Handler',
+    "SharedPV",
+    "Handler",
 )
 
 
 class ServOpWrap(object):
-
     def __init__(self, op, wrap, unwrap):
         self._op, self._wrap, self._unwrap = op, wrap, unwrap
 
@@ -19,19 +18,19 @@ class ServOpWrap(object):
         V = self._op.value()
         try:
             return self._unwrap(V)
-        except: # py3 will chain automatically, py2 won't
-            raise ValueError("Unable to unwrap %r with %r"%(V, self._unwrap))
+        except Exception:  # py3 will chain automatically, py2 won't
+            raise ValueError("Unable to unwrap %r with %r" % (V, self._unwrap))
 
     def done(self, value=None, error=None):
         if value is not None:
             try:
                 value = self._wrap(value)
-            except:
-                raise ValueError("Unable to wrap %r with %r"%(value, self._wrap))
+            except Exception:
+                raise ValueError("Unable to wrap %r with %r" % (value, self._wrap))
         self._op.done(value, error)
 
     def __getattr__(self, key):
-        return getattr(self._op, key) # dispatch to _p4p.ServerOperation
+        return getattr(self._op, key)  # dispatch to _p4p.ServerOperation
 
 
 class Handler(object):
@@ -48,7 +47,7 @@ class Handler(object):
         :param SharedPV pv: The :py:class:`SharedPV` which this Handler is associated with.
         :param ServerOperation op: The operation being initiated.
         """
-        op.done(error='Not supported')
+        op.done(error="Not supported")
 
     def rpc(self, pv, op):
         """
@@ -58,7 +57,7 @@ class Handler(object):
         :param SharedPV pv: The :py:class:`SharedPV` which this Handler is associated with.
         :param ServerOperation op: The operation being initiated.
         """
-        op.done(error='Not supported')
+        op.done(error="Not supported")
 
     def onFirstConnect(self, pv):
         """
@@ -78,7 +77,6 @@ class Handler(object):
 
 
 class SharedPV(_SharedPV):
-
     """Shared state Process Variable.  Callback based implementation.
 
     .. note:: if initial=None, the PV is initially **closed** and
@@ -125,9 +123,16 @@ class SharedPV(_SharedPV):
     See :ref:`unwrap`
     """
 
-    def __init__(self, handler=None, initial=None,
-                 nt=None, wrap=None, unwrap=None,
-                 options=None, **kws):
+    def __init__(
+        self,
+        handler=None,
+        initial=None,
+        nt=None,
+        wrap=None,
+        unwrap=None,
+        options=None,
+        **kws,
+    ):
         self.nt = nt
         self._handler = handler or self._DummyHandler()
         self._whandler = self._WrapHandler(self, self._handler)
@@ -156,8 +161,10 @@ class SharedPV(_SharedPV):
 
         try:
             V = self._wrap(value, **kws)
-        except: # py3 will chain automatically, py2 won't
-            raise ValueError("Unable to wrap %r with %r and %r"%(value, self._wrap, kws))
+        except Exception:  # py3 will chain automatically, py2 won't
+            raise ValueError(
+                "Unable to wrap %r with %r and %r" % (value, self._wrap, kws)
+            )
         _SharedPV.open(self, V)
 
     def post(self, value, **kws):
@@ -172,16 +179,18 @@ class SharedPV(_SharedPV):
         """
         try:
             V = self._wrap(value, **kws)
-        except: # py3 will chain automatically, py2 won't
-            raise ValueError("Unable to wrap %r with %r and %r"%(value, self._wrap, kws))
+        except Exception:  # py3 will chain automatically, py2 won't
+            raise ValueError(
+                "Unable to wrap %r with %r and %r" % (value, self._wrap, kws)
+            )
         _SharedPV.post(self, V)
 
     def current(self):
         V = _SharedPV.current(self)
         try:
             return self._unwrap(V)
-        except: # py3 will chain automatically, py2 won't
-            raise ValueError("Unable to unwrap %r with %r"%(V, self._unwrap))
+        except Exception:  # py3 will chain automatically, py2 won't
+            raise ValueError("Unable to unwrap %r with %r" % (V, self._unwrap))
 
     def _exec(self, op, M, *args):  # sub-classes will replace this
         try:
@@ -192,16 +201,15 @@ class SharedPV(_SharedPV):
             _log.exception("Unexpected")
 
     def _onFirstConnect(self, _junk):
-        pass # see sub-classes.  run before user onFirstConnect()
+        pass  # see sub-classes.  run before user onFirstConnect()
 
     def _onLastDisconnect(self, _junk):
-        pass # see sub-classes.  run after user onLastDisconnect()
+        pass  # see sub-classes.  run after user onLastDisconnect()
 
     class _DummyHandler(object):
         pass
 
     class _WrapHandler(object):
-
         "Wrapper around user Handler which logs exceptions"
 
         def __init__(self, pv, real):
@@ -226,14 +234,19 @@ class SharedPV(_SharedPV):
             self._pv._exec(None, self._pv._onLastDisconnect, None)
 
         def put(self, op):
-            _log.debug('PUT %s %s', self._pv, op)
+            _log.debug("PUT %s %s", self._pv, op)
             try:
-                self._pv._exec(op, self._real.put, self._pv, ServOpWrap(op, self._pv._wrap, self._pv._unwrap))
+                self._pv._exec(
+                    op,
+                    self._real.put,
+                    self._pv,
+                    ServOpWrap(op, self._pv._wrap, self._pv._unwrap),
+                )
             except AttributeError:
                 op.done(error="Put not supported")
 
         def rpc(self, op):
-            _log.debug('RPC %s %s', self._pv, op)
+            _log.debug("RPC %s %s", self._pv, op)
             try:
                 self._pv._exec(op, self._real.rpc, self._pv, op)
             except AttributeError:
@@ -244,6 +257,7 @@ class SharedPV(_SharedPV):
         def decorate(fn):
             self._handler.onFirstConnect = fn
             return fn
+
         return decorate
 
     @property
@@ -251,6 +265,7 @@ class SharedPV(_SharedPV):
         def decorate(fn):
             self._handler.onLastDisconnect = fn
             return fn
+
         return decorate
 
     @property
@@ -258,6 +273,7 @@ class SharedPV(_SharedPV):
         def decorate(fn):
             self._handler.put = fn
             return fn
+
         return decorate
 
     @property
@@ -265,11 +281,13 @@ class SharedPV(_SharedPV):
         def decorate(fn):
             self._handler.rpc = fn
             return fn
+
         return decorate
 
     def __repr__(self):
         if self.isOpen():
-            return '%s(value=%s)' % (self.__class__.__name__, repr(self.current()))
+            return "%s(value=%s)" % (self.__class__.__name__, repr(self.current()))
         else:
             return "%s(<closed>)" % (self.__class__.__name__,)
+
     __str__ = __repr__

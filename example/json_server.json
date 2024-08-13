@@ -1,4 +1,12 @@
 [
-{"value":42, "desc":"hello", "extra":2},
-{"value":4.2, "desc":"world", "extra":5}
+    {
+        "value": 42,
+        "desc": "hello",
+        "extra": 2
+    },
+    {
+        "value": 4.2,
+        "desc": "world",
+        "extra": 5
+    }
 ]

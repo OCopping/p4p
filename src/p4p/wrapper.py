@@ -5,29 +5,29 @@
 from . import _p4p
 
 __all__ = (
-    'Type',
-    'Value',
-    'Struct',
-    'StructArray',
-    'Union',
-    'UnionArray',
+    "Type",
+    "Value",
+    "Struct",
+    "StructArray",
+    "Union",
+    "UnionArray",
 )
 
 
 def Struct(spec=None, id=None):
-    return ('S', id, spec)
+    return ("S", id, spec)
 
 
 def Union(spec=None, id=None):
-    return ('U', id, spec)
+    return ("U", id, spec)
 
 
 def StructArray(spec=None, id=None):
-    return ('aS', id, spec)
+    return ("aS", id, spec)
 
 
 def UnionArray(spec=None, id=None):
-    return ('aU', id, spec)
+    return ("aU", id, spec)
 
 
 class Type(_p4p._Type):
@@ -78,6 +78,7 @@ class Type(_p4p._Type):
     S    struct
     ==== =======
     """
+
     __slots__ = []  # we don't allow custom attributes for now
     __contains__ = _p4p._Type.has
 
@@ -97,7 +98,9 @@ class Type(_p4p._Type):
     def __repr__(self):
         S, id, fields = self.aspy()
         return 'Type(%s, id="%s")' % (fields, id)
+
     __str__ = __repr__
+
 
 _p4p.Type = Type
 
@@ -134,13 +137,13 @@ class Value(_p4p._Value):
     Defines a structure containing a sub-structure 'value' which has a single field 'index' which is
     a signed 32-bit integer.
     """
+
     __slots__ = []  # prevent attribute access to invalid fields
 
     __contains__ = _p4p._Value.has
 
     def keys(self):
-        """keys() -> Iterable[str]
-        """
+        """keys() -> Iterable[str]"""
         return self.type().keys()
 
     def __iter__(self):
@@ -154,7 +157,7 @@ class Value(_p4p._Value):
         or if its parent, or any child, field is marked as changed.
         """
         S = super(Value, self).changed
-        for fld in fields or (None,): # no args tests for any change
+        for fld in fields or (None,):  # no args tests for any change
             if S(fld):
                 return True
         return False
@@ -212,17 +215,18 @@ class Value(_p4p._Value):
         parts = []
 
         ID = self.getID()
-        if ID!='structure':
-            parts.append('id:'+ID)
+        if ID != "structure":
+            parts.append("id:" + ID)
 
         try:
             parts.append(repr(self.value))
-        except AttributeError: # no .value
+        except AttributeError:  # no .value
             try:
                 parts.append(repr(self.get(self.type().keys()[0])))
-            except IndexError: # empty Structure
+            except IndexError:  # empty Structure
                 pass
 
-        return 'Value(%s)'%', '.join(parts)
+        return "Value(%s)" % ", ".join(parts)
+
 
 _p4p.Value = Value
