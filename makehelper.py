@@ -10,8 +10,6 @@ PY_INCDIRS := /path ...
 PY_LIBDIRS := /path ...
 """
 
-from __future__ import print_function
-
 import os
 import sys
 

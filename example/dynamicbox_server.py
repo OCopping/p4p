@@ -16,8 +16,6 @@ These mailbox PVs can be dynamically created and destroyed via RPC calls.
    $ pvget -m foo:list
 """
 
-from __future__ import print_function
-
 import logging
 import sys
 from threading import Lock

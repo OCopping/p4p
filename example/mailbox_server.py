@@ -15,8 +15,6 @@ In another shell
    $ pvinfo foo
 """
 
-from __future__ import print_function
-
 import logging
 import time
 
