@@ -47,7 +47,7 @@ jobs:
             source: true
 
           # Linux py builds x64
-          # TODO: manylinux1 and 2014 are EOL, even more reason to remove these supported versions
+          # TODO: manylinux1 is EOL, even more reason to remove these supported versions
           - name: linux 2.7 amd64
             os: ubuntu-latest
             pyver: cp27-cp27m
@@ -72,49 +72,49 @@ jobs:
           - name: linux 3.6 amd64
             os: ubuntu-latest
             pyver: cp36-cp36m
-            piparch: manylinux1_x86_64
+            piparch: manylinux_2_28_x86_64
             numpy: numpy==1.12.1
             cython: Cython==0.29.2
 
           - name: linux 3.7 amd64
             os: ubuntu-latest
             pyver: cp37-cp37m
-            piparch: manylinux1_x86_64
+            piparch: manylinux_2_28_x86_64
             numpy: numpy==1.16.2
             cython: Cython==0.29.2
 
           - name: linux 3.8 amd64
             os: ubuntu-latest
             pyver: cp38-cp38
-            piparch: manylinux1_x86_64
+            piparch: manylinux_2_28_x86_64
             numpy: numpy==1.17.3
             cython: Cython==0.29.2
 
           - name: linux 3.9 amd64
             os: ubuntu-latest
             pyver: cp39-cp39
-            piparch: manylinux2010_x86_64
+            piparch: manylinux_2_28_x86_64
             numpy: numpy==1.19.3
             cython: Cython==0.29.23
 
           - name: linux 3.10 amd64
             os: ubuntu-latest
             pyver: cp310-cp310
-            piparch: manylinux2014_x86_64
+            piparch: manylinux_2_28_x86_64
             numpy: numpy==1.22.0
             cython: Cython==0.29.23
 
           - name: linux 3.11 amd64
             os: ubuntu-latest
             pyver: cp311-cp311
-            piparch: manylinux2014_x86_64
+            piparch: manylinux_2_28_x86_64
             numpy: numpy==1.23.5
             cython: Cython==0.29.35
 
           - name: linux 3.12 amd64
             os: ubuntu-latest
             pyver: cp312-cp312
-            piparch: manylinux2014_x86_64
+            piparch: manylinux_2_28_x86_64
             numpy: numpy==2.0.1
             cython: Cython==3.0.10
             skip_cothread: yes
@@ -174,7 +174,7 @@ jobs:
           - name: linux 3.9 i686
             os: ubuntu-latest
             pyver: cp39-cp39
-            piparch: manylinux2010_i686
+            piparch: manylinux2014_i686
             numpy: numpy==1.19.5
             cython: Cython==0.29.23
             pre: linux32
