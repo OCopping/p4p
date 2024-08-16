@@ -3,23 +3,24 @@
 # cf.
 # example/monitor_client.py
 
-from __future__ import print_function
-
-import sys, time, logging
+import logging
+import sys
+import time
 
 from p4p.client.thread import Context
 
 logging.basicConfig(level=logging.INFO)
 
+
 def cb(value):
-    if not value.raw.changed('value'):
+    if not value.raw.changed("value"):
         print("Meta update")
         for fld in value.raw.asSet():
-            print(" ",fld,value.raw[fld])
+            print(" ", fld, value.raw[fld])
 
 
 print("Create Context")
-with Context('pva') as ctxt:
+with Context("pva") as ctxt:
     print("Subscribe to", sys.argv[1])
     S = ctxt.monitor(sys.argv[1], cb)
 

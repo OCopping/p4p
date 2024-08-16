@@ -1,36 +1,26 @@
-
-from __future__ import print_function
-
 import logging
-_log = logging.getLogger(__name__)
-
-import warnings
 import sys
 
-try:
-    from Queue import Queue, Full, Empty
-except ImportError:
-    from queue import Queue, Full, Empty
-
 from .. import _p4p
-from .._p4p import Cancelled, Disconnected, Finished, RemoteError
-
-from ..wrapper import Value, Type
+from .._p4p import Cancelled, Finished, RemoteError
 from ..nt import buildNT
+from ..wrapper import Type, Value
+
+_log = logging.getLogger(__name__)
 
 if sys.version_info >= (3, 0):
     unicode = str
 
 __all__ = (
-    'Subscription',
-    'Context',
-    'RemoteError',
+    "Subscription",
+    "Context",
+    "RemoteError",
 )
 
 
 def unwrapHandler(handler, nt):
-    """Wrap get/rpc handler to unwrap Value
-    """
+    """Wrap get/rpc handler to unwrap Value"""
+
     def dounwrap(code, msg, val, handler=handler):
         _log.debug("Handler (%s, %s, %r) -> %s", code, msg, val, handler)
         try:
@@ -38,19 +28,20 @@ def unwrapHandler(handler, nt):
                 handler(RemoteError(msg))
             elif code == 1:
                 handler(Cancelled())
-            elif code == 2: # exception during builder callback
+            elif code == 2:  # exception during builder callback
                 A, B, C = val
                 if unicode is str:
-                    E = A(B).with_traceback(C) # py 3
+                    E = A(B).with_traceback(C)  # py 3
                 else:
-                    E = A(B) # py 2 (bye bye traceback...)
+                    E = A(B)  # py 2 (bye bye traceback...)
                 handler(E)
             else:
                 if val is not None:
                     val = nt.unwrap(val)
                 handler(val)
-        except:
+        except Exception:
             _log.exception("Exception in Operation handler")
+
     return dounwrap
 
 
@@ -59,14 +50,14 @@ def monHandler(handler):
         _log.debug("Update %s", handler)
         try:
             handler()
-        except:
+        except Exception:
             _log.exception("Exception in Monitor handler")
+
     return cb
 
 
 def defaultBuilder(value, nt):
-    """Reasonably sensible default handling of put builder
-    """
+    """Reasonably sensible default handling of put builder"""
     if callable(value):
         return value
 
@@ -78,6 +69,7 @@ def defaultBuilder(value, nt):
                 V[k] = v
         else:
             nt.assign(V, value)
+
     return builder
 
 
@@ -88,7 +80,6 @@ def wrapRequest(request):
 
 
 class Subscription(_p4p.ClientMonitor):
-
     """Interface to monitor subscription FIFO
 
     Use method poll() to try to pop an item from the FIFO.
@@ -128,11 +119,12 @@ class Subscription(_p4p.ClientMonitor):
         self.close()
 
     if unicode is str:
+
         def __del__(self):
             self.close()
 
-class Context(object):
 
+class Context(object):
     """
     :param str provider: A Provider name.  Try "pva" or run :py:meth:`Context.providers` for a complete list.
     :param conf dict: Configuration to pass to provider.  Depends on provider selected.
@@ -141,9 +133,9 @@ class Context(object):
     :param dict unwrap: Legacy :ref:`unwrap`.
     """
 
-    def __init__(self, provider='pva', conf=None, useenv=None,
-                 unwrap=None, nt=None,
-                 **kws):
+    def __init__(
+        self, provider="pva", conf=None, useenv=None, unwrap=None, nt=None, **kws
+    ):
         self.name = provider
         super(Context, self).__init__(**kws)
 
@@ -185,13 +177,13 @@ class Context(object):
         """
         opts = []
         if process is not None:
-            opts.append('process=%s' % process)
+            opts.append("process=%s" % process)
         if wait is not None:
             if wait:
-                opts.append('wait=true')
+                opts.append("wait=true")
             else:
-                opts.append('wait=false')
-        return 'field()record[%s]' % (','.join(opts))
+                opts.append("wait=false")
+        return "field()record[%s]" % (",".join(opts))
 
     def get(self, name, handler, request=None):
         """Begin Fetch of current value of a PV
@@ -202,8 +194,14 @@ class Context(object):
 
         :returns: A object with a method cancel() which may be used to abort the operation.
         """
-        return _ClientOperation(self._ctxt, name, handler=unwrapHandler(handler, self._nt),
-                                    pvRequest=wrapRequest(request), get=True, put=False)
+        return _ClientOperation(
+            self._ctxt,
+            name,
+            handler=unwrapHandler(handler, self._nt),
+            pvRequest=wrapRequest(request),
+            get=True,
+            put=False,
+        )
 
     def put(self, name, handler, builder=None, request=None, get=True):
         """Write a new value to a PV.
@@ -218,9 +216,15 @@ class Context(object):
 
         :returns: A object with a method cancel() which may be used to abort the operation.
         """
-        return _ClientOperation(self._ctxt, name, handler=unwrapHandler(handler, self._nt),
-                                    builder=defaultBuilder(builder, self._nt),
-                                    pvRequest=wrapRequest(request), get=get, put=True)
+        return _ClientOperation(
+            self._ctxt,
+            name,
+            handler=unwrapHandler(handler, self._nt),
+            builder=defaultBuilder(builder, self._nt),
+            pvRequest=wrapRequest(request),
+            get=get,
+            put=True,
+        )
 
     def rpc(self, name, handler, value, request=None):
         """Perform RPC operation on PV
@@ -233,8 +237,14 @@ class Context(object):
         """
         if value is None:
             value = Value(Type([]))
-        return _ClientOperation(self._ctxt, name, handler=unwrapHandler(handler, self._nt),
-                                    value=value, pvRequest=wrapRequest(request), rpc=True)
+        return _ClientOperation(
+            self._ctxt,
+            name,
+            handler=unwrapHandler(handler, self._nt),
+            value=value,
+            pvRequest=wrapRequest(request),
+            rpc=True,
+        )
 
     def monitor(self, name, handler, request=None, **kws):
         """Begin subscription to named PV
@@ -246,10 +256,14 @@ class Context(object):
 
         :returns: A Subscription
         """
-        return Subscription(self._ctxt, name,
-                            nt=self._nt,
-                            handler=monHandler(handler), pvRequest=wrapRequest(request),
-                            **kws)
+        return Subscription(
+            self._ctxt,
+            name,
+            nt=self._nt,
+            handler=monHandler(handler),
+            pvRequest=wrapRequest(request),
+            **kws,
+        )
 
     @staticmethod
     def providers():
@@ -259,7 +273,9 @@ class Context(object):
     def set_debug(lvl):
         _p4p.set_debug(lvl)
 
+
 set_debug = _p4p.logger_level_set
+
 
 def _cleanup_contexts():
     contexts = list(_p4p.all_providers)
@@ -267,12 +283,16 @@ def _cleanup_contexts():
     for ctxt in contexts:
         ctxt.close()
 
+
 class _ClientOperation(_p4p.ClientOperation):
     if unicode is str:
+
         def __del__(self):
             self.close()
 
+
 class _ClientProvider(_p4p.ClientProvider):
     if unicode is str:
+
         def __del__(self):
             self.close()

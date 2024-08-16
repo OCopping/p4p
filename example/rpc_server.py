@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""Example demonstrating RPC server
+"""
+Example demonstrating RPC server
 
 Single threaded request handling.
 Additional requests are queued.
@@ -22,12 +23,12 @@ or rpc_client.py
 
 """
 
-from __future__ import print_function
+import logging
+import time
 
-import time, logging
-
-from p4p.rpc import rpc, quickRPCServer
 from p4p.nt import NTScalar
+from p4p.rpc import quickRPCServer, rpc
+
 
 class MyExample(object):
     @rpc(NTScalar("d"))
@@ -36,20 +37,24 @@ class MyExample(object):
 
     @rpc(NTScalar("s"))
     def echo(self, value, delay=1):
-        print("Start echo", value,"wait",delay)
+        print("Start echo", value, "wait", delay)
         time.sleep(float(delay))
-        print("End echo", value,"wait",delay)
+        print("End echo", value, "wait", delay)
         return value
+
 
 example = MyExample()
 
+
 def getargs():
     from argparse import ArgumentParser
+
     P = ArgumentParser()
-    P.add_argument('--workers', type=int, default=1)
-    P.add_argument('-d','--debug', action='store_true', default=False)
-    P.add_argument('prefix')
+    P.add_argument("--workers", type=int, default=1)
+    P.add_argument("-d", "--debug", action="store_true", default=False)
+    P.add_argument("prefix")
     return P.parse_args()
+
 
 args = getargs()
 
@@ -58,9 +63,8 @@ logging.basicConfig(level=logging.DEBUG if args.debug else logging.INFO)
 try:
     # "Example" is an arbitrary name, which must be unique
     # within this process (not globally).
-    quickRPCServer(provider="Example", 
-                   prefix=args.prefix,
-                   workers=args.workers,
-                   target=example)
+    quickRPCServer(
+        provider="Example", prefix=args.prefix, workers=args.workers, target=example
+    )
 except KeyboardInterrupt:
     pass

@@ -1,17 +1,13 @@
-
-from __future__ import print_function
-
-import logging
-import sys
+import fnmatch
 import gc
 import inspect
-import unittest
-import time
+import logging
 import os
+import sys
 import tempfile
-import fnmatch
+import time
+import unittest
 import weakref
-
 from functools import wraps
 
 from .. import listRefs
@@ -21,11 +17,12 @@ _log = logging.getLogger(__name__)
 
 _forceLazy()
 
-if not hasattr(unittest.TestCase, 'assertRegex'):
+if not hasattr(unittest.TestCase, "assertRegex"):
     unittest.TestCase.assertRegex = unittest.TestCase.assertRegexpMatches
 
-if not hasattr(unittest.TestCase, 'assertRaisesRegex'):
+if not hasattr(unittest.TestCase, "assertRaisesRegex"):
     unittest.TestCase.assertRaisesRegex = unittest.TestCase.assertRaisesRegexp
+
 
 class RefTestMixin(object):
     __showLeftovers = True
@@ -33,7 +30,7 @@ class RefTestMixin(object):
     """Ensure that each test does not result in a net change in extension object counts
     """
     # set to list of names to compare.  Set to None to disable
-    ref_check = ('*',)
+    ref_check = ("*",)
 
     def __refs(self, refs=None):
         refs = refs or listRefs()
@@ -41,17 +38,20 @@ class RefTestMixin(object):
         names = set()
         for pat in self.ref_check:
             names |= set(fnmatch.filter(refs, pat))
-        return dict([(K, V) for K, V in refs.items() if K in names and V>0])
+        return dict([(K, V) for K, V in refs.items() if K in names and V > 0])
 
     def setUp(self):
         self.__traceme = set()
         if self.ref_check is not None:
             self.__before = self.__refs()
 
-            for mustzero in ('ClientContextImpl',):
-                if self.__before.get(mustzero, 0)!=0 and self.__showLeftovers:
-                    self.__showLeftovers = False # only show failure once
-                    self.fail('Leftovers from previous test: %s = %d'%(mustzero, self.__before[mustzero]))
+            for mustzero in ("ClientContextImpl",):
+                if self.__before.get(mustzero, 0) != 0 and self.__showLeftovers:
+                    self.__showLeftovers = False  # only show failure once
+                    self.fail(
+                        "Leftovers from previous test: %s = %d"
+                        % (mustzero, self.__before[mustzero])
+                    )
 
         super(RefTestMixin, self).setUp()
 
@@ -71,8 +71,8 @@ class RefTestMixin(object):
 
             test = self.__before == after
 
-            for mustzero in ('ClientContextImpl',):
-                test &= after.get(mustzero, 0)==0
+            for mustzero in ("ClientContextImpl",):
+                test &= after.get(mustzero, 0) == 0
 
             frame = inspect.currentframe()
             for T in traceme:
@@ -81,8 +81,8 @@ class RefTestMixin(object):
                     continue
                 nrefs = sys.getrefcount(O)
                 refs = gc.get_referrers(O)
-                nrefs -= len(refs) # exclude tracked refs
-                refs = filter(lambda o:o not in (frame, traceme), refs)
+                nrefs -= len(refs)  # exclude tracked refs
+                refs = filter(lambda o: o not in (frame, traceme), refs)
                 _log.debug("ALIVE %s -> %s + %d ext refs", O, refs, nrefs)
 
             self.assertDictEqual(self.__before, after)
@@ -90,14 +90,16 @@ class RefTestMixin(object):
             # self.assertFalse(any([V>1000000 for V in refs.values()]), "before %s after %s"%(self.__raw_before, refs))
 
             if not test:
-                for mustzero in ('ClientContextImpl', 'ServerPvt'):
+                for mustzero in ("ClientContextImpl", "ServerPvt"):
                     self.assertEqual(0, after.get(mustzero, 0), mustzero)
                 self.assertDictEqual(self.__before, after)
 
+
 class RefTestCase(RefTestMixin, unittest.TestCase):
-    def __init__(self, methodName='runTest'):
+    def __init__(self, methodName="runTest"):
         # skip reference check for tests which have already failed.
         meth = getattr(self, methodName)
+
         @wraps(meth)
         def wrapper(*args, **kws):
             try:
@@ -105,6 +107,7 @@ class RefTestCase(RefTestMixin, unittest.TestCase):
             except:
                 self.ref_check = None
                 raise
+
         setattr(self, methodName, wrapper)
         super(RefTestCase, self).__init__(methodName=methodName)
 
@@ -114,11 +117,15 @@ class RefTestCase(RefTestMixin, unittest.TestCase):
     def tearDown(self):
         super(RefTestCase, self).tearDown()
 
-    if not hasattr(unittest.TestCase, 'assertRegex'):
+    if not hasattr(unittest.TestCase, "assertRegex"):
+
         def assertRegex(self, text, regex):
             import re
-            self.assertTrue(re.search(regex, text),
-                            """Regex didn't match: %r not found in %r"""%(regex, text))
+
+            self.assertTrue(
+                re.search(regex, text),
+                """Regex didn't match: %r not found in %r""" % (regex, text),
+            )
 
 
 def gctrace(obj, maxdepth=8):
@@ -133,7 +140,7 @@ def gctrace(obj, maxdepth=8):
         obj = todo.pop(0)
         I = id(obj)
         if inspect.isframe(obj):
-            S = 'Frame %s:%d' % (obj.f_code.co_filename, obj.f_lineno)
+            S = "Frame %s:%d" % (obj.f_code.co_filename, obj.f_lineno)
         else:
             S = str(obj)
 
@@ -142,19 +149,19 @@ def gctrace(obj, maxdepth=8):
             # break
             continue
 
-        print('-' * len(stack), S, end='')
+        print("-" * len(stack), S, end="")
 
         if I in stack:
-            print(' Recurse')
+            print(" Recurse")
             continue
         elif I in visited:
-            print(' Visited')
+            print(" Visited")
             continue
         elif len(stack) >= maxdepth:
-            print(' Depth limit')
+            print(" Depth limit")
             continue
         else:
-            print(' ->')
+            print(" ->")
 
         stack.append(I)
         visited.add(I)
@@ -166,9 +173,10 @@ def gctrace(obj, maxdepth=8):
                 continue
             todo.insert(0, R)
 
+
 class RegularNamedTemporaryFile(object):
-    """Like tempfile.NamedTemporaryFile which doesn't use O_TEMPORARY on windows
-    """
+    """Like tempfile.NamedTemporaryFile which doesn't use O_TEMPORARY on windows"""
+
     def __init__(self, *args, **kws):
         fd, self.name = tempfile.mkstemp()
         try:
@@ -186,7 +194,8 @@ class RegularNamedTemporaryFile(object):
 
     def __enter__(self):
         return self
-    def __exit__(self,A,B,C):
+
+    def __exit__(self, A, B, C):
         self.close()
 
     def close(self):

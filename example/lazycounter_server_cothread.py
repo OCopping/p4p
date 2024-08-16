@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-"""A counter which only increments while at least one client is connected.
+"""
+A counter which only increments while at least one client is connected.
 
 As a demonstration of the ability to perform type changes,
 switch between integer to float each time the counter is stopped.
@@ -10,23 +11,21 @@ to show that this can be done asynchronously.
    $ pvget -m foo
 """
 
-from __future__ import print_function
-
-import time, logging
-_log = logging.getLogger(__name__)
+import logging
 
 import cothread
-
 from p4p.nt import NTScalar
-from p4p.server import Server, StaticProvider
+from p4p.server import Server
 from p4p.server.cothread import SharedPV
 
+_log = logging.getLogger(__name__)
 logging.basicConfig(level=logging.DEBUG)
 
 types = {
-    False:NTScalar('I'),
-    True:NTScalar('d'),
+    False: NTScalar("I"),
+    True: NTScalar("d"),
 }
+
 
 class LazyCounter(object):
     def __init__(self):
@@ -50,7 +49,7 @@ class LazyCounter(object):
             # no clients connected
             if self.pv.isOpen():
                 self.pv.close()
-                self.select = not self.select # toggle type for next clients
+                self.select = not self.select  # toggle type for next clients
 
             # cancel timer until a new first client arrives
             self.timer.cancel()
@@ -78,13 +77,14 @@ class LazyCounter(object):
         self.count = op.value().value
         op.done()
 
+
 pv = SharedPV(handler=LazyCounter())
 
-with Server(providers=[{'foo': pv}]):
-    print('Running')
+with Server(providers=[{"foo": pv}]):
+    print("Running")
     try:
         cothread.WaitForQuit()
     except KeyboardInterrupt:
         pass
 
-print('Done')
+print("Done")

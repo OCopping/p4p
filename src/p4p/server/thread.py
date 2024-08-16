@@ -1,18 +1,19 @@
-
 import logging
-_log = logging.getLogger(__name__)
-
 from functools import partial
 from threading import Event
 
-from ..util import _defaultWorkQueue
-from .raw import SharedPV as _SharedPV, Handler
 from ..client.raw import RemoteError
+from ..util import _defaultWorkQueue
+from .raw import Handler
+from .raw import SharedPV as _SharedPV
+
+_log = logging.getLogger(__name__)
 
 __all__ = (
-    'SharedPV',
-    'Handler',
+    "SharedPV",
+    "Handler",
 )
+
 
 def _on_queue(op, M, *args):
     try:
@@ -28,7 +29,6 @@ def _on_queue(op, M, *args):
 
 
 class SharedPV(_SharedPV):
-
     """Shared state Process Variable.  Callback based implementation.
 
     .. note:: if initial=None, the PV is initially **closed** and

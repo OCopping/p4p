@@ -10,20 +10,17 @@ PY_INCDIRS := /path ...
 PY_LIBDIRS := /path ...
 """
 
-from __future__ import print_function
-
-import sys
-import errno
 import os
+import sys
 
-if len(sys.argv)<2:
+if len(sys.argv) < 2:
     out = sys.stdout
 else:
     try:
         os.makedirs(os.path.dirname(sys.argv[1]))
     except OSError:
         pass
-    out = open(sys.argv[1], 'w')
+    out = open(sys.argv[1], "w")
 
 try:
     from sysconfig import get_config_var, get_python_inc
@@ -31,7 +28,7 @@ except ImportError:
     from distutils.sysconfig import get_config_var, get_python_inc
 
 incdirs = [get_python_inc()]
-libdir = get_config_var('LIBDIR') or ''
+libdir = get_config_var("LIBDIR") or ""
 
 
 def get_numpy_include_dirs():
@@ -42,33 +39,33 @@ def get_numpy_include_dirs():
 
 incdirs = get_numpy_include_dirs() + incdirs
 
-print('TARGET_CFLAGS +=',get_config_var('BASECFLAGS'), file=out)
-print('TARGET_CXXFLAGS +=',get_config_var('BASECFLAGS'), file=out)
+print("TARGET_CFLAGS +=", get_config_var("BASECFLAGS"), file=out)
+print("TARGET_CXXFLAGS +=", get_config_var("BASECFLAGS"), file=out)
 
-print('PY_VER :=',get_config_var('VERSION'), file=out)
-ldver = get_config_var('LDVERSION')
+print("PY_VER :=", get_config_var("VERSION"), file=out)
+ldver = get_config_var("LDVERSION")
 if ldver is None:
-    ldver = get_config_var('VERSION')
-    if get_config_var('Py_DEBUG'):
-        ldver = ldver+'_d'
-print('PY_LD_VER :=',ldver, file=out)
-print('PY_INCDIRS :=',' '.join(incdirs), file=out)
-print('PY_LIBDIRS :=',libdir, file=out)
+    ldver = get_config_var("VERSION")
+    if get_config_var("Py_DEBUG"):
+        ldver = ldver + "_d"
+print("PY_LD_VER :=", ldver, file=out)
+print("PY_INCDIRS :=", " ".join(incdirs), file=out)
+print("PY_LIBDIRS :=", libdir, file=out)
 
 try:
-    import asyncio
+    import asyncio  # noqa: F401
 except ImportError:
-    print('HAVE_ASYNCIO := NO', file=out)
+    print("HAVE_ASYNCIO := NO", file=out)
 else:
-    print('HAVE_ASYNCIO := YES', file=out)
+    print("HAVE_ASYNCIO := YES", file=out)
 
 try:
-    import cothread
+    import cothread  # noqa: F401
 except ImportError:
-    print('HAVE_COTHREAD := NO', file=out)
+    print("HAVE_COTHREAD := NO", file=out)
 else:
-    print('HAVE_COTHREAD := YES', file=out)
+    print("HAVE_COTHREAD := YES", file=out)
 
-print('PY_OK := YES', file=out)
+print("PY_OK := YES", file=out)
 
 out.close()

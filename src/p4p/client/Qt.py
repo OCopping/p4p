@@ -1,27 +1,23 @@
 import logging
 from math import ceil
 
-from qtpy.QtCore import QObject, QCoreApplication, Signal, QEvent
+from qtpy.QtCore import QCoreApplication, QEvent, QObject, Signal
 
+from .._p4p import Disconnected, RemoteError
+from ..wrapper import Type, Value
 from . import raw
-from .raw import Disconnected, RemoteError, Cancelled, Finished
-from ..wrapper import Value, Type
-from .._p4p import ClientProvider
-from .._p4p import (logLevelAll, logLevelTrace, logLevelDebug,
-                    logLevelInfo, logLevelWarn, logLevelError,
-                    logLevelFatal, logLevelOff)
-
 from .thread import TimeoutError
 
 __all__ = (
-    'Context',
-    'Value',
-    'Type',
-    'RemoteError',
-    'TimeoutError',
+    "Context",
+    "Value",
+    "Type",
+    "RemoteError",
+    "TimeoutError",
 )
 
 _log = logging.getLogger(__name__)
+
 
 # some pyqt callbacks are delicate, and will SIGSEGV is a python exception is allowed to propagate
 def exceptionGuard(fn):
@@ -29,8 +25,10 @@ def exceptionGuard(fn):
         try:
             fn(*args, **kws)
         except:
-            _log.exception('oops')
+            _log.exception("oops")
+
     return wrapper
+
 
 class CBEvent(QEvent):
     # allocate an event ID#
@@ -40,6 +38,7 @@ class CBEvent(QEvent):
         QEvent.__init__(self, self.EVENT_TYPE)
         self.result = result
 
+
 class Operation(QObject):
     _op = None
     _result = None
@@ -48,7 +47,7 @@ class Operation(QObject):
 
     def __init__(self, parent, timeout):
         QObject.__init__(self, parent)
-        self._active = self.startTimer(ceil(timeout*1000))
+        self._active = self.startTimer(ceil(timeout * 1000))
 
     def close(self):
         self._op.close()
@@ -73,6 +72,7 @@ class Operation(QObject):
             self._result = evt.result
             self.result.emit(self._result)
 
+
 class MCache(QObject):
     _op = None
     # receives a Value or an Exception
@@ -83,11 +83,11 @@ class MCache(QObject):
 
         self.name = name
         self._active = None
-        self._holdoff = 10*1000 # acts as low limit on high limit
+        self._holdoff = 10 * 1000  # acts as low limit on high limit
         self._last = Disconnected()
 
     def _add(self, slot, limitHz=10.0):
-        holdoff = int(max(0.1, 1.0/limitHz)*1000)
+        holdoff = int(max(0.1, 1.0 / limitHz) * 1000)
 
         # Rate limiting for multiple consumers is hard.
         # We throttle to the highest consumer rate (shortest holdoff).
@@ -104,7 +104,7 @@ class MCache(QObject):
         QCoreApplication.postEvent(self, CBEvent(slot))
 
     def _event(self):
-        _log.debug('event1 %s', self.name)
+        _log.debug("event1 %s", self.name)
         # called on PVA worker thread
 
         QCoreApplication.postEvent(self, CBEvent(None))
@@ -112,7 +112,7 @@ class MCache(QObject):
     @exceptionGuard
     def customEvent(self, evt):
         E = evt.result
-        _log.debug('event2 %s %s', self.name, E)
+        _log.debug("event2 %s %s", self.name, E)
         # E will be one of:
         #   None - FIFO not empty (call pop())
         #   RemoteError
@@ -122,7 +122,7 @@ class MCache(QObject):
         if E is None:
             if self._active is None:
                 self._active = self.startTimer(ceil(self._holdoff))
-                _log.debug('Start timer with %s', self._holdoff)
+                _log.debug("Start timer with %s", self._holdoff)
             return
 
         else:
@@ -132,7 +132,7 @@ class MCache(QObject):
     @exceptionGuard
     def timerEvent(self, evt):
         V = self._op.pop()
-        _log.debug('tick %s %s', self.name, V)
+        _log.debug("tick %s %s", self.name, V)
 
         if V is not None:
             self._last = V
@@ -142,9 +142,10 @@ class MCache(QObject):
             self.killTimer(self._active)
             self._active = None
 
+
 class Context(raw.Context):
     """Context(provider, conf=None, useenv=True)
-    
+
     PyQt aware Context.
     Methods in the class give notification of completion/update through Qt signals.
 
@@ -155,13 +156,13 @@ class Context(raw.Context):
     :param dict unwrap: Legacy :ref:`unwrap`.
     :param parent QObject: Parent for QObjects created through this Context.
     """
+
     def __init__(self, provider, parent=None, **kws):
         super(Context, self).__init__(provider, **kws)
         self._parent = QObject(parent)
 
         self._mcache = {}
         self._puts = {}
-
 
     def disconnect(self, name=None):
         if name is None:
@@ -174,8 +175,17 @@ class Context(raw.Context):
 
     # get() omitted (why would a gui want to do this?)
 
-    def put(self, name, value, slot=None, request=None, timeout=5.0,
-            process=None, wait=None, get=True):
+    def put(
+        self,
+        name,
+        value,
+        slot=None,
+        request=None,
+        timeout=5.0,
+        process=None,
+        wait=None,
+        get=True,
+    ):
         """Write a new value to a single PV.
 
         Returns an Operation instance which will emit either a success and error signal.
@@ -201,7 +211,10 @@ class Context(raw.Context):
         if request and (process or wait is not None):
             raise ValueError("request= is mutually exclusive to process= or wait=")
         elif process or wait is not None:
-            request = 'field()record[block=%s,process=%s]' % ('true' if wait else 'false', process or 'passive')
+            request = "field()record[block=%s,process=%s]" % (
+                "true" if wait else "false",
+                process or "passive",
+            )
 
         prev = self._puts.get(name)
         if prev is not None:
@@ -212,7 +225,9 @@ class Context(raw.Context):
         if slot is not None:
             op.result.connect(slot)
 
-        op._op = super(Context, self).put(name, op._resultcb, builder=value, request=request, get=get)
+        op._op = super(Context, self).put(
+            name, op._resultcb, builder=value, request=request, get=get
+        )
 
         return op
 
@@ -259,15 +274,15 @@ class Context(raw.Context):
         :param limitHz float: Maximum rate at which signals will be emitted.  In signals per second.
         :returns: a :py:class:`MCache` instance
         """
-        _log.debug('Subscribe to %s with %s', name, request)
+        _log.debug("Subscribe to %s with %s", name, request)
         if request is not None:
             raise NotImplementedError("monitor() with request= not yet implemented")
-        #if isinstance(request, (str, bytes)):
+        # if isinstance(request, (str, bytes)):
         #    request = ClientProvider.makeRequest(request)
-        #if isinstance(request, Value):
+        # if isinstance(request, Value):
         #    request = serialize(request)
 
-        key = (name, request) # (str, bytes|None)
+        key = (name, request)  # (str, bytes|None)
 
         try:
             op = self._mcache[key]

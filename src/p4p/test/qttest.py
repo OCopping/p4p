@@ -1,18 +1,16 @@
 import logging
-import unittest
-from functools import wraps
 from math import ceil
 
-from qtpy.QtCore import QObject, QCoreApplication
+from qtpy.QtCore import QCoreApplication, QObject
 
-from ..client.Qt import exceptionGuard, Disconnected, TimeoutError, Context
-
-from ..server import Server, StaticProvider
-from ..server.thread import SharedPV, _defaultWorkQueue
+from ..client.Qt import Context, Disconnected, TimeoutError, exceptionGuard
 from ..nt import NTScalar
+from ..server import Server
+from ..server.thread import SharedPV, _defaultWorkQueue
 from .utils import RefTestCase
 
 _log = logging.getLogger(__name__)
+
 
 class waitSignal(QObject):
     def __init__(self, sig=None):
@@ -26,7 +24,7 @@ class waitSignal(QObject):
             self._sig.connect(self.slot)
         return self
 
-    def __exit__(self,A,B,C):
+    def __exit__(self, A, B, C):
         self.close()
         if self._sig is not None:
             self._sig.disconnect(self.slot)
@@ -38,19 +36,19 @@ class waitSignal(QObject):
 
     @exceptionGuard
     def timerEvent(self, evt):
-        _log.error('Test timeout')
+        _log.error("Test timeout")
         QCoreApplication.instance().quit()
         self.close()
 
     def slot(self, *args):
-        _log.debug('signalled %s', args)
+        _log.debug("signalled %s", args)
         self._args = args
         QCoreApplication.instance().quit()
         self.close()
 
     def wait(self, timeout=5.0):
         assert self._T is None, self._T
-        self._T = self.startTimer(ceil(timeout*1000))
+        self._T = self.startTimer(ceil(timeout * 1000))
         try:
             self._args = None
             QCoreApplication.instance().exec_()
@@ -63,11 +61,12 @@ class waitSignal(QObject):
             self.close()
 
     def waitValue(self, **kws):
-        E, = self.wait(**kws)
+        (E,) = self.wait(**kws)
         if isinstance(E, Exception):
             raise E
         else:
             return E
+
 
 class TestGPM(RefTestCase):
     def setUp(self):
@@ -76,15 +75,17 @@ class TestGPM(RefTestCase):
         self._timedout = False
         self.app = QCoreApplication([])
 
-        self.pv = SharedPV(nt=NTScalar('i'), initial=42)
+        self.pv = SharedPV(nt=NTScalar("i"), initial=42)
+
         @self.pv.put
         def mailbox(pv, op):
-            _log.debug('onPut: %s', op.value())
+            _log.debug("onPut: %s", op.value())
             pv.post(op.value())
             op.done()
-        self.server = Server(providers=[{'pvname':self.pv}], isolate=True)
 
-        self.ctxt = Context('pva', conf=self.server.conf(), useenv=False)
+        self.server = Server(providers=[{"pvname": self.pv}], isolate=True)
+
+        self.ctxt = Context("pva", conf=self.server.conf(), useenv=False)
 
     def tearDown(self):
         self.ctxt.close()
@@ -99,13 +100,13 @@ class TestGPM(RefTestCase):
 
     def test_pm(self):
         with waitSignal() as sub, waitSignal() as put:
-            S = self.ctxt.monitor('pvname', sub.slot)
-            E, = sub.wait()
+            self.ctxt.monitor("pvname", sub.slot)
+            (E,) = sub.wait()
             self.assertIsInstance(E, Disconnected)
 
             self.assertEqual(sub.waitValue(), 42)
 
-            self.ctxt.put('pvname', 51, slot=put.slot)
+            self.ctxt.put("pvname", 51, slot=put.slot)
             put.waitValue()
 
             self.assertEqual(sub.waitValue(), 51)

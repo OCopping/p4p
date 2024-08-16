@@ -1,39 +1,30 @@
-
-from __future__ import print_function
-
-import unittest
-import weakref
 import gc
+import weakref
 
-from ..client.raw import Context, Cancelled
-from ..wrapper import Value, Type
+from ..client.raw import Cancelled, Context
+from ..wrapper import Type, Value
 from .utils import RefTestCase
 
 
 class TestRequest(RefTestCase):
-
     def testEmpty(self):
-        self.assertListEqual(Context.makeRequest("").tolist(),
-                             [('field', [])])
+        self.assertListEqual(Context.makeRequest("").tolist(), [("field", [])])
 
     def testValue(self):
         R = Context.makeRequest("field(value)")
-        self.assertListEqual(R['field']['value'].tolist(), [])
+        self.assertListEqual(R["field"]["value"].tolist(), [])
 
     def testAll(self):
-        self.assertListEqual(Context.makeRequest("field()").tolist(),
-                             [('field', [])]
-                             )
+        self.assertListEqual(Context.makeRequest("field()").tolist(), [("field", [])])
 
 
 class TestProviders(RefTestCase):
     def testProviders(self):
         providers = Context.providers()
-        self.assertIn('pva', providers)
+        self.assertIn("pva", providers)
 
 
 class TestPVA(RefTestCase):
-
     def setUp(self):
         super(TestPVA, self).setUp()
         self.ctxt = Context("pva")
@@ -49,6 +40,7 @@ class TestPVA(RefTestCase):
 
         def fn(V):
             _X[0] = V
+
         op = self.ctxt.get("completelyInvalidChannelName", fn)
 
         op.close()
@@ -60,6 +52,7 @@ class TestPVA(RefTestCase):
 
         def fn(V):
             _X[0] = V
+
         op = self.ctxt.get("completelyInvalidChannelName", fn)
 
         W = weakref.ref(op)
@@ -75,6 +68,7 @@ class TestPVA(RefTestCase):
 
         def fn(V):
             _X[0] = V
+
         op = self.ctxt.get("completelyInvalidChannelName", fn)
 
         fn._cycle = op  # create cycle: op -> fn -> fn.__dict__ -> op
@@ -91,16 +85,22 @@ class TestPVA(RefTestCase):
         self.assertIsInstance(_X[0], Cancelled)
 
     def testRPCAbort(self):
-        P = Value(Type([
-            ('value', 'i'),
-        ]), {
-            'value': 42,
-        })
+        P = Value(
+            Type(
+                [
+                    ("value", "i"),
+                ]
+            ),
+            {
+                "value": 42,
+            },
+        )
 
         _X = [None]
 
         def fn(V):
             _X[0] = V
+
         op = self.ctxt.rpc("completelyInvalidChannelName", fn, P)
 
         W = weakref.ref(op)

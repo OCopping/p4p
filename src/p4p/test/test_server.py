@@ -1,21 +1,22 @@
-from __future__ import print_function
-
-import unittest
-import sys
-import random
-import weakref
 import gc
-import threading
+import sys
+import weakref
 
-from ..server import Server, installProvider, removeProvider, DynamicProvider, StaticProvider
 from ..client.thread import Context
+from ..server import (
+    DynamicProvider,
+    Server,
+    StaticProvider,
+    installProvider,
+    removeProvider,
+)
 from .utils import RefTestCase
 
 
 def checkweak(O):
     o = O()
     if o is not None:
-        print('Live object', id(o), type(o), sys.getrefcount(o), gc.get_referrers(o))
+        print("Live object", id(o), type(o), sys.getrefcount(o), gc.get_referrers(o))
     return o
 
 
@@ -84,7 +85,7 @@ class TestDummyProvider(RefTestCase):
         self.assertIsNotNone(d())
 
         try:
-            with Context('server:foo'):
+            with Context("server:foo"):
                 removeProvider("foo")
                 # Our DynamicProvider will not longer be found by new Contexts
                 # however, it remains active so long as 'P' is active
@@ -96,12 +97,17 @@ class TestDummyProvider(RefTestCase):
         finally:
             removeProvider("foo")
 
+
 class TestServerConf(RefTestCase):
     def test_bad_iface(self):
-        P = StaticProvider('x')
+        P = StaticProvider("x")
         with self.assertRaisesRegex(RuntimeError, "invalid"):
-            S = Server(providers=[P], useenv=False, conf={
-                'EPICS_PVAS_INTF_ADDR_LIST':'invalid.host.name.',
-                'EPICS_PVAS_BROADCAST_PORT':'0',
-                'EPICS_PVAS_SERVER_PORT':'0',
-            })
+            Server(
+                providers=[P],
+                useenv=False,
+                conf={
+                    "EPICS_PVAS_INTF_ADDR_LIST": "invalid.host.name.",
+                    "EPICS_PVAS_BROADCAST_PORT": "0",
+                    "EPICS_PVAS_SERVER_PORT": "0",
+                },
+            )

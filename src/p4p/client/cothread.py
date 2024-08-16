@@ -1,43 +1,39 @@
-
-from __future__ import absolute_import
-
 import logging
 import sys
 from functools import partial
-_log = logging.getLogger(__name__)
 
 import cothread
 
+from .._p4p import Cancelled, Disconnected, Finished, RemoteError
+from ..wrapper import Type, Value
 from . import raw
-from .raw import Disconnected, RemoteError, Cancelled, Finished
 from .thread import TimeoutError
-from ..wrapper import Value, Type
-from .._p4p import (logLevelAll, logLevelTrace, logLevelDebug,
-                    logLevelInfo, logLevelWarn, logLevelError,
-                    logLevelFatal, logLevelOff)
+
+_log = logging.getLogger(__name__)
 
 __all__ = [
-    'Context',
-    'Value',
-    'Type',
-    'RemoteError',
+    "Context",
+    "Value",
+    "Type",
+    "RemoteError",
 ]
 
 if sys.version_info >= (3, 0):
     unicode = str
 
+
 def cb2event(done, value):
     if isinstance(value, Cancelled):
-        pass # can ignore cothreads can't be preempted
+        pass  # can ignore cothreads can't be preempted
     elif done:
-        _log.warn('Internal logic error: spurious second callback')
+        _log.warn("Internal logic error: spurious second callback")
     elif isinstance(value, Exception):
         done.SignalException(value)
     else:
         done.Signal(value)
 
-class Context(raw.Context):
 
+class Context(raw.Context):
     def get(self, name, request=None, timeout=5.0, throw=True):
         """Fetch current value of some number of PVs.
 
@@ -66,9 +62,17 @@ class Context(raw.Context):
         assert len(name) == len(request), (name, request)
 
         return cothread.WaitForAll(
-            [cothread.Spawn(self._get_one, N, request=R, timeout=timeout, throw=throw,
-                            raise_on_wait=True)
-             for N, R in zip(name, request)]
+            [
+                cothread.Spawn(
+                    self._get_one,
+                    N,
+                    request=R,
+                    timeout=timeout,
+                    throw=throw,
+                    raise_on_wait=True,
+                )
+                for N, R in zip(name, request)
+            ]
         )
 
     def _get_one(self, name, request=None, timeout=5.0, throw=True):
@@ -78,7 +82,7 @@ class Context(raw.Context):
 
         op = super(Context, self).get(name, cb, request=request)
 
-        _log.debug('get %s request=%s', name, request)
+        _log.debug("get %s request=%s", name, request)
 
         try:
             ret = done.Wait(timeout)
@@ -91,7 +95,17 @@ class Context(raw.Context):
 
         return ret
 
-    def put(self, name, values, request=None, process=None, wait=None, timeout=5.0, get=True, throw=True):
+    def put(
+        self,
+        name,
+        values,
+        request=None,
+        process=None,
+        wait=None,
+        timeout=5.0,
+        get=True,
+        throw=True,
+    ):
         """Write a new value of some number of PVs.
 
         :param name: A single name string or list of name strings
@@ -128,12 +142,17 @@ class Context(raw.Context):
         if request and (process or wait is not None):
             raise ValueError("request= is mutually exclusive to process= or wait=")
         elif process or wait is not None:
-            request = 'field()record[block=%s,process=%s]' % ('true' if wait else 'false', process or 'passive')
+            request = "field()record[block=%s,process=%s]" % (
+                "true" if wait else "false",
+                process or "passive",
+            )
             if not singlepv:
-                request = [request]*len(name)
+                request = [request] * len(name)
 
         if singlepv:
-            return self._put_one(name, values, request=request, timeout=timeout, throw=throw, get=get)
+            return self._put_one(
+                name, values, request=request, timeout=timeout, throw=throw, get=get
+            )
 
         elif request is None:
             request = [None] * len(name)
@@ -142,9 +161,19 @@ class Context(raw.Context):
         assert len(name) == len(values), (name, values)
 
         return cothread.WaitForAll(
-            [cothread.Spawn(self._put_one, N, V, request=R, timeout=timeout, throw=throw, get=get,
-                            raise_on_wait=True)
-             for N, V, R in zip(name, values, request)]
+            [
+                cothread.Spawn(
+                    self._put_one,
+                    N,
+                    V,
+                    request=R,
+                    timeout=timeout,
+                    throw=throw,
+                    get=get,
+                    raise_on_wait=True,
+                )
+                for N, V, R in zip(name, values, request)
+            ]
         )
 
     def _put_one(self, name, value, request=None, timeout=5.0, get=True, throw=True):
@@ -154,7 +183,7 @@ class Context(raw.Context):
 
         op = super(Context, self).put(name, cb, builder=value, request=request, get=get)
 
-        _log.debug('put %s %r request=%s', name, value, request)
+        _log.debug("put %s %r request=%s", name, value, request)
 
         try:
             ret = done.Wait(timeout)
@@ -195,7 +224,7 @@ class Context(raw.Context):
 
         op = super(Context, self).rpc(name, cb, value, request=request)
 
-        _log.debug('rpc %s %r request=%s', name, value, request)
+        _log.debug("rpc %s %r request=%s", name, value, request)
 
         try:
             try:
@@ -232,7 +261,6 @@ class Context(raw.Context):
 
 
 class Subscription(object):
-
     def __init__(self, name, cb, notify_disconnect=False):
         self.name, self._S, self._cb = name, None, cb
         self._notify_disconnect = notify_disconnect
@@ -248,8 +276,7 @@ class Subscription(object):
         self.close()
 
     def close(self):
-        """Close subscription.
-        """
+        """Close subscription."""
         if self._S is not None:
             # after .close() self._event should never be called
             self._S.close()
@@ -259,12 +286,12 @@ class Subscription(object):
 
     @property
     def done(self):
-        'Has all data for this subscription been received?'
+        "Has all data for this subscription been received?"
         return self._S is None or self._S.done()
 
     @property
     def empty(self):
-        'Is data pending in event queue?'
+        "Is data pending in event queue?"
         return self._S is None or self._S.empty()
 
     def _event(self):
@@ -289,10 +316,10 @@ class Subscription(object):
                 while True:
                     E = S.pop()
                     if E is None:
-                        break # queue empty
+                        break  # queue empty
 
                     elif isinstance(E, Disconnected):
-                        _log.debug('Subscription notify for %s with %s', self.name, E)
+                        _log.debug("Subscription notify for %s with %s", self.name, E)
                         if self._notify_disconnect:
                             self._cb(E)
                         else:
@@ -300,7 +327,7 @@ class Subscription(object):
                         continue
 
                     elif isinstance(E, RemoteError):
-                        _log.debug('Subscription notify for %s with %s', self.name, E)
+                        _log.debug("Subscription notify for %s with %s", self.name, E)
                         if self._notify_disconnect:
                             self._cb(E)
                         elif isinstance(E, RemoteError):
@@ -315,14 +342,14 @@ class Subscription(object):
                         cothread.Yield()
 
                     if S.done:
-                        _log.debug('Subscription complete %s', self.name)
+                        _log.debug("Subscription complete %s", self.name)
                         S.close()
                         self._S = None
                         if self._notify_disconnect:
                             E = Finished()
                             self._cb(E)
                         break
-        except:
+        except Exception:
             _log.exception("Error processing Subscription event: %r", E)
             self._S.close()
             self._S = None

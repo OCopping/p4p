@@ -1,19 +1,24 @@
-import sys
 import logging
-import warnings
 import re
+import sys
 import time
 import uuid
+import warnings
 from weakref import ref
 
-from weakref import WeakSet
-
 from .. import _p4p
-from .._p4p import (Server as _Server,
-                    StaticProvider as _StaticProvider,
-                    DynamicProvider as _DynamicProvider,
-                    ServerOperation,
-                    )
+from .._p4p import (
+    DynamicProvider as _DynamicProvider,
+)
+from .._p4p import (
+    Server as _Server,
+)
+from .._p4p import (
+    ServerOperation,
+)
+from .._p4p import (
+    StaticProvider as _StaticProvider,
+)
 
 if sys.version_info >= (3, 0):
     unicode = str
@@ -21,23 +26,28 @@ if sys.version_info >= (3, 0):
 _log = logging.getLogger(__name__)
 
 __all__ = (
-    'Server',
-        'installProvider',
-        'removeProvider',
-        'StaticProvider',
-        'DynamicProvider',
-        'ServerOperation',
+    "Server",
+    "installProvider",
+    "removeProvider",
+    "StaticProvider",
+    "DynamicProvider",
+    "ServerOperation",
 )
+
 
 def installProvider(name, provider):
     _p4p._providers[name] = ref(provider)
+
+
 def removeProvider(name):
     _p4p._providers.pop(name, None)
+
+
 def clearProviders():
     _p4p._providers.clear()
 
-class Server(object):
 
+class Server(object):
     """Server(conf=None, useenv=True, providers=[""])
 
     :param providers: A list of provider names or instances.  See below.
@@ -72,30 +82,30 @@ class Server(object):
     """
 
     def __init__(self, providers, isolate=False, **kws):
-        self.__keep_alive = [] # ick...
+        self.__keep_alive = []  # ick...
 
         if isinstance(providers, (bytes, unicode)):
-            providers = providers.split() # split on space
+            providers = providers.split()  # split on space
             warnings.warn("Server providers list should be a list", DeprecationWarning)
 
         Ps = []
         for provider in providers:
             if isinstance(provider, tuple):
                 provider, order = provider
-            elif hasattr(provider, 'order'):
+            elif hasattr(provider, "order"):
                 order = provider.order
             else:
                 order = 0
 
             if isinstance(provider, (bytes, unicode)):
-                if not re.match(r'^[^ \t\n\r]+$', provider):
-                    raise ValueError("Invalid provider name: '%s'"%provider)
+                if not re.match(r"^[^ \t\n\r]+$", provider):
+                    raise ValueError("Invalid provider name: '%s'" % provider)
                 Ps.append((provider, order))
 
             elif isinstance(provider, (_StaticProvider, _DynamicProvider, _p4p.Source)):
                 Ps.append((provider, order))
 
-            elif hasattr(provider, 'items'):
+            elif hasattr(provider, "items"):
                 P = StaticProvider()
                 for name, pv in provider.items():
                     P.add(name, pv)
@@ -105,19 +115,21 @@ class Server(object):
                 self.__keep_alive.append(P)
 
             else:
-                raise ValueError("providers=[] must be a list of string, SharedPV, or dict.  Not %s"%provider)
+                raise ValueError(
+                    "providers=[] must be a list of string, SharedPV, or dict.  Not %s"
+                    % provider
+                )
 
         if isolate:
-            assert 'useenv' not in kws and 'conf' not in kws, kws
-            kws['useenv'] = False
-            kws['conf'] = {
-                'EPICS_PVAS_INTF_ADDR_LIST': '127.0.0.1',
-                'EPICS_PVA_ADDR_LIST': '127.0.0.1',
-                'EPICS_PVA_AUTO_ADDR_LIST': '0',
-                'EPICS_PVA_SERVER_PORT': '0',
-                'EPICS_PVA_BROADCAST_PORT': '0',
+            assert "useenv" not in kws and "conf" not in kws, kws
+            kws["useenv"] = False
+            kws["conf"] = {
+                "EPICS_PVAS_INTF_ADDR_LIST": "127.0.0.1",
+                "EPICS_PVA_ADDR_LIST": "127.0.0.1",
+                "EPICS_PVA_AUTO_ADDR_LIST": "0",
+                "EPICS_PVA_SERVER_PORT": "0",
+                "EPICS_PVA_BROADCAST_PORT": "0",
             }
-
 
         _log.debug("Starting Server isolated=%s, %s", isolate, kws)
         self._S = _Server(providers=Ps, **kws)
@@ -151,8 +163,7 @@ class Server(object):
         return self._S.conf()
 
     def stop(self):
-        """Force server to stop serving, and close connections to existing clients.
-        """
+        """Force server to stop serving, and close connections to existing clients."""
         _log.debug("Stopping Server")
         self._S.stop()
         self.__keep_alive = []
@@ -178,48 +189,48 @@ class Server(object):
             finally:
                 _log.info("Stopping server")
 
-class StaticProvider(_StaticProvider):
 
+class StaticProvider(_StaticProvider):
     """A channel provider which servers from a clearly defined list of names.
     This list may change at any time.
 
     :param str name: Provider name.  Must be unique within the local context in which it is used.
                      None, the default, will choose an appropriate value.
     """
+
     def __init__(self, name=None):
         if name is None:
             # Caller doesn't care.  Pick something unique w/o spaces
             name = str(uuid.uuid4())
         super(StaticProvider, self).__init__(name)
 
-class DynamicProvider(_DynamicProvider):
 
+class DynamicProvider(_DynamicProvider):
     """A channel provider which does not maintain a list of provided channel names.
 
-       The following example shows a simple case, in fact so simple that StaticProvider
-       is a better fit. ::
+    The following example shows a simple case, in fact so simple that StaticProvider
+    is a better fit. ::
 
-            class DynHandler(object):
-                def __init__(self):
-                    self.pv = SharedPV()
-                def testChannel(self, name): # return True, False, or DynamicProvider.NotYet
-                    return name=="blah"
-                def makeChannel(self, name, peer):
-                    assert name=="blah"
-                    return self.pv
-            provider = DynamicProvider("arbitrary", DynHandler())
-            server = Server(providers=[provider])
+         class DynHandler(object):
+             def __init__(self):
+                 self.pv = SharedPV()
+             def testChannel(self, name): # return True, False, or DynamicProvider.NotYet
+                 return name=="blah"
+             def makeChannel(self, name, peer):
+                 assert name=="blah"
+                 return self.pv
+         provider = DynamicProvider("arbitrary", DynHandler())
+         server = Server(providers=[provider])
     """
 
     # Return from Handler.testChannel() to prevent caching of negative result.
     # Use when testChannel('name') might shortly return True
-    NotYet = b'nocache'
+    NotYet = b"nocache"
 
     def __init__(self, name, handler):
         _DynamicProvider.__init__(self, name, self._WrapHandler(handler))
 
     class _WrapHandler(object):
-
         "Wrapper around user Handler which logs exception"
 
         def __init__(self, real):
@@ -236,6 +247,7 @@ class DynamicProvider(_DynamicProvider):
                 return self._real.makeChannel(name, peer)
             except:
                 _log.exception("Unexpected")
+
 
 def _cleanup_servers():
     _log.debug("Stopping all Server instances")

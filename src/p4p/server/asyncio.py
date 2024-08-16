@@ -1,20 +1,19 @@
-
+import asyncio
 import logging
-
 from functools import partial
 
-import asyncio
-
-from .raw import SharedPV as _SharedPV, Handler
+from ..client.asyncio import all_tasks, create_task, get_running_loop
 from ..client.thread import RemoteError
-from ..client.asyncio import get_running_loop, create_task, all_tasks
+from .raw import Handler
+from .raw import SharedPV as _SharedPV
 
 __all__ = (
-    'SharedPV',
-        'Handler',
+    "SharedPV",
+    "Handler",
 )
 
 _log = logging.getLogger(__name__)
+
 
 def _log_err(V):
     if isinstance(V, Exception):
@@ -24,12 +23,12 @@ def _log_err(V):
     return V
 
 
-def _handle(pv, op, M, args): # callback in asyncio loop
+def _handle(pv, op, M, args):  # callback in asyncio loop
     try:
-        _log.debug('SERVER HANDLE %s %s %r', op, M, args)
+        _log.debug("SERVER HANDLE %s %s %r", op, M, args)
         maybeco = M(*args)
         if asyncio.iscoroutine(maybeco):
-            _log.debug('SERVER SCHEDULE %s', maybeco)
+            _log.debug("SERVER SCHEDULE %s", maybeco)
             task = create_task(maybeco)
 
             # we have no good place to join async put()/rpc() handler results
@@ -37,8 +36,8 @@ def _handle(pv, op, M, args): # callback in asyncio loop
             # and potentially far in the future.  So we log and otherwise
             # discard the result.
             task.add_done_callback(_log_err)
-            task._SharedPV = pv # mark so _wait_closed() can distinguish
-        return # caller is responsible for op.done()
+            task._SharedPV = pv  # mark so _wait_closed() can distinguish
+        return  # caller is responsible for op.done()
     except RemoteError as e:
         err = e
     except Exception as e:
@@ -49,7 +48,6 @@ def _handle(pv, op, M, args): # callback in asyncio loop
 
 
 class SharedPV(_SharedPV):
-
     def __init__(self, handler=None, **kws):
         self.loop = get_running_loop()
         _SharedPV.__init__(self, handler=handler, **kws)
@@ -67,8 +65,7 @@ class SharedPV(_SharedPV):
         self._disconnected.set()
 
     async def _wait_closed(self):
-        """Wait until any in-progress asynchronous put()/rpc() handler tasks have completed.
-        """
+        """Wait until any in-progress asynchronous put()/rpc() handler tasks have completed."""
         _log.debug("Synchronizing %r", self)
 
         def _peak_done(F, V):
@@ -77,7 +74,7 @@ class SharedPV(_SharedPV):
 
         Ts = []
         for t in all_tasks():
-            if getattr(t, '_SharedPV', None) is not self:
+            if getattr(t, "_SharedPV", None) is not self:
                 continue
             F = asyncio.Future()
             t.add_done_callback(partial(_peak_done, F))

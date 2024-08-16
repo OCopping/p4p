@@ -1,24 +1,22 @@
-
 import logging
-_log = logging.getLogger(__name__)
-
 from functools import partial
 
 try:
-    from Queue import Queue, Full, Empty
+    from Queue import Empty, Queue
 except ImportError:
-    from queue import Queue, Full, Empty
-from threading import Thread, Event
+    from queue import Empty, Queue
+from threading import Event, Thread
+
+_log = logging.getLogger(__name__)
 
 __all__ = [
-    'WorkQueue',
+    "WorkQueue",
 ]
 
 
 class WorkQueue(object):
+    """A threaded work queue."""
 
-    """A threaded work queue.
-    """
     _stopit = object()
 
     def __init__(self, maxsize=5):
@@ -40,13 +38,14 @@ class WorkQueue(object):
         self._Q.put(self._stopit)
 
     def handle(self):
-        """Process queued work until interrupt() is called
-        """
+        """Process queued work until interrupt() is called"""
         while True:
             # TODO: Queue.get() (and anything using thread.allocate_lock
             #       ignores signals :(  so timeout periodically to allow delivery
             try:
-                callable = None # ensure no lingering references to past work while blocking
+                callable = (
+                    None  # ensure no lingering references to past work while blocking
+                )
                 callable = self._Q.get(True, 1.0)
             except Empty:
                 continue  # retry on timeout
@@ -54,40 +53,42 @@ class WorkQueue(object):
                 if callable is self._stopit:
                     break
                 callable()
-            except:
+            except Exception:
                 _log.exception("Error from WorkQueue w/ %r", callable)
             finally:
                 self._Q.task_done()
 
+
 class ThreadedWorkQueue(WorkQueue):
     def __init__(self, name=None, workers=1, daemon=False, **kws):
-        assert workers>=1, workers
+        assert workers >= 1, workers
         WorkQueue.__init__(self, **kws)
         self.name = name
         self._daemon = daemon
-        self._T = [None]*workers
+        self._T = [None] * workers
 
     def __enter__(self):
         self.start()
-    def __exit__(self, A,B,C):
+
+    def __exit__(self, A, B, C):
         self.stop()
 
     def start(self):
         for n in range(len(self._T)):
             if self._T[n] is not None:
                 continue
-            T = self._T[n] = Thread(name='%s[%d]'%(self.name, n), target=self.handle)
+            T = self._T[n] = Thread(name="%s[%d]" % (self.name, n), target=self.handle)
             T.daemon = self._daemon
             T.start()
 
-        return self # allow chaining
+        return self  # allow chaining
 
     def stop(self):
         [self.interrupt() for T in self._T if T is not None]
-        [T.join()      for T in self._T if T is not None]
-        self._T = [None]*len(self._T)
+        [T.join() for T in self._T if T is not None]
+        self._T = [None] * len(self._T)
 
-        return self # allow chaining
+        return self  # allow chaining
 
     def sync(self, timeout=None):
         wait1 = [Event() for _n in range(len(self._T))]
@@ -97,7 +98,10 @@ class ThreadedWorkQueue(WorkQueue):
             wait1.set()
             wait2.wait()
 
-        [self.push_wait(partial(syncX, wait1[n], wait2[n])) for n in range(len(self._T))]
+        [
+            self.push_wait(partial(syncX, wait1[n], wait2[n]))
+            for n in range(len(self._T))
+        ]
 
         # wait for all workers to ready wait1 barrier
         for W in wait1:
@@ -107,14 +111,15 @@ class ThreadedWorkQueue(WorkQueue):
         for W in wait2:
             W.set()
 
-        return self # allow chaining
+        return self  # allow chaining
+
 
 # lazy create a default work queues
 
-class _DefaultWorkQueue(object):
 
+class _DefaultWorkQueue(object):
     def __init__(self, workers=4):  # TODO: configurable?
-        self.W = [None]*workers
+        self.W = [None] * workers
         self.n = 0
 
     def __del__(self):
@@ -128,7 +133,7 @@ class _DefaultWorkQueue(object):
 
         # sort of load balancing by giving different queues to each SharedPV
         # but preserve ordering or callbacks as each SharedPV has only one queue
-        self.n = (self.n+1)%len(self.W)
+        self.n = (self.n + 1) % len(self.W)
         return W
 
     def sync(self):
@@ -136,6 +141,7 @@ class _DefaultWorkQueue(object):
 
     def stop(self):
         [W.stop() for W in self.W if W is not None]
-        self.W = [None]*len(self.W)
+        self.W = [None] * len(self.W)
+
 
 _defaultWorkQueue = _DefaultWorkQueue()
